@@ -383,14 +383,36 @@ class Project {
 		UIBox.showCustom(function(ui: Zui) {
 			if (ui.tab(Id.handle(), tr("Import Mesh"))) {
 
+				var isObj8 = false;
 				if (path.toLowerCase().endsWith(".obj")) {
-					Context.splitBy = ui.combo(Id.handle(), [
-						tr("Object"),
-						tr("Group"),
-						tr("Material"),
-						tr("UDIM Tile"),
-					], tr("Split By"), true);
-					if (ui.isHovered) ui.tooltip(tr("Split .obj mesh into objects"));
+					Data.getBlob(path, function(b) {	
+
+						var input = new haxe.io.BytesInput(b.bytes);
+						var char = input.readLine();
+						if(char == "I" || char == "A"){
+							char = input.readLine();
+							if(char == "800"){
+								char = input.readLine();
+								if(char == "OBJ"){
+									isObj8 = true;
+								}
+							}
+						}
+					});
+					Data.deleteBlob(path);
+					if(isObj8 == true){
+						Context.replaceObj = ui.check(Id.handle({selected: Context.parseTransform}), tr("Replace object"));
+						if (ui.isHovered) ui.tooltip(tr("Replace existing object on import"));	
+					}
+					else{
+						Context.splitBy = ui.combo(Id.handle(), [
+							tr("Object"),
+							tr("Group"),
+							tr("Material"),
+							tr("UDIM Tile"),
+						], tr("Split By"), true);
+						if (ui.isHovered) ui.tooltip(tr("Split .obj mesh into objects"));
+					}
 				}
 
 				if (path.toLowerCase().endsWith(".fbx")) {
@@ -411,7 +433,8 @@ class Project {
 					UIBox.show = false;
 					App.redrawUI();
 					function doImport() {
-						ImportMesh.run(path, clearLayers, replaceExisting);
+						if(isObj8 == true)	ImportMesh.run(path, clearLayers, Context.replaceObj, isObj8);
+						else ImportMesh.run(path, clearLayers, replaceExisting);
 					}
 					#if (krom_android || krom_ios)
 					arm.App.notifyOnNextFrame(function() {
