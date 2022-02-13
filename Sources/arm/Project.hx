@@ -401,8 +401,8 @@ class Project {
 					});
 					Data.deleteBlob(path);
 					if(isObj8 == true){
-						Context.replaceObj = ui.check(Id.handle({selected: Context.parseTransform}), tr("Replace object"));
-						if (ui.isHovered) ui.tooltip(tr("Replace existing object on import"));	
+						replaceExisting = !ui.check(Id.handle({selected: !Context.parseTransform}), tr("Append"));
+						if (ui.isHovered) ui.tooltip(tr("Append mesh to existing"));	
 					}
 					else{
 						Context.splitBy = ui.combo(Id.handle(), [
@@ -433,7 +433,7 @@ class Project {
 					UIBox.show = false;
 					App.redrawUI();
 					function doImport() {
-						if(isObj8 == true)	ImportMesh.run(path, clearLayers, Context.replaceObj, isObj8);
+						if(isObj8 == true)	ImportMesh.run(path, clearLayers, replaceExisting, isObj8);
 						else ImportMesh.run(path, clearLayers, replaceExisting);
 					}
 					#if (krom_android || krom_ios)

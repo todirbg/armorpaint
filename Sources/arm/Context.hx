@@ -102,7 +102,6 @@ class Context {
 	public static var layersExport = ExportVisible;
 	public static var layersDestination = DestinationDisk;
 	public static var splitBy = SplitObject;
-	public static var replaceObj = true;
 	public static var parseTransform = true;
 	public static var parseVCols = false;
 
