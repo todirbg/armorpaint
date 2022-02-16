@@ -3,6 +3,7 @@ package arm.ui;
 import kha.System;
 import zui.Zui;
 import arm.Enums;
+import arm.Translator._tr;
 
 class UIToolbar {
 
@@ -14,18 +15,18 @@ class UIToolbar {
 	public var toolbarw = defaultToolbarW;
 
 	public var toolNames = [
-		tr("Brush"),
-		tr("Eraser"),
-		tr("Fill"),
-		tr("Decal"),
-		tr("Text"),
-		tr("Clone"),
-		tr("Blur"),
-		tr("Particle"),
-		tr("ColorID"),
-		tr("Picker"),
-		tr("Gizmo"),
-		tr("Bake")
+		_tr("Brush"),
+		_tr("Eraser"),
+		_tr("Fill"),
+		_tr("Decal"),
+		_tr("Text"),
+		_tr("Clone"),
+		_tr("Blur"),
+		_tr("Particle"),
+		_tr("ColorID"),
+		_tr("Picker"),
+		_tr("Gizmo"),
+		_tr("Bake")
 	];
 	var toolCount = [10, 2, 1, 1];
 
