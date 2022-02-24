@@ -64,6 +64,7 @@ class Context {
 	public static var savedCamera = Mat4.identity();
 
 	public static var swatch: TSwatchColor;
+	public static var pickedColor: TSwatchColor = Project.makeSwatch();
 	public static var materialIdPicked = 0;
 	public static var uvxPicked = 0.0;
 	public static var uvyPicked = 0.0;
@@ -134,10 +135,12 @@ class Context {
 	public static var textToolImage: Image = null;
 	public static var textToolText: String;
 	public static var particleMaterial: MaterialData = null;
+	#if arm_physics
 	public static var particlePhysics = false;
 	public static var particleHitX = 0.0;
 	public static var particleHitY = 0.0;
 	public static var particleHitZ = 0.0;
+	#end
 
 	public static var layerFilter = 0;
 	public static var runBrush: Int->Void = null;
@@ -264,6 +267,8 @@ class Context {
 	public static var vxaoAperture = 1.2;
 	public static var textureExportPath = "";
 	public static var lastStatusPosition = 0;
+	public static var lastHtab0Position = 0;
+	public static var maximizedSidebarWidth = 0;
 	public static var cameraControls = ControlsOrbit;
 	public static var dragDestination = 0;
 	#if (krom_android || krom_ios)

@@ -44,17 +44,17 @@ class UIHeader {
 				if (Project.assets.length > 0) ui.image(Project.getImage(Project.assets[cid]));
 			}
 			else if (Context.tool == ToolPicker) {
-				var baseRPicked = Math.round(Context.swatch.base.R * 10) / 10;
-				var baseGPicked = Math.round(Context.swatch.base.G * 10) / 10;
-				var baseBPicked = Math.round(Context.swatch.base.B * 10) / 10;
-				var normalRPicked = Math.round(Context.swatch.normal.R * 10) / 10;
-				var normalGPicked = Math.round(Context.swatch.normal.G * 10) / 10;
-				var normalBPicked = Math.round(Context.swatch.normal.B * 10) / 10;
-				var occlusionPicked = Math.round(Context.swatch.occlusion * 100) / 100;
-				var roughnessPicked = Math.round(Context.swatch.roughness * 100) / 100;
-				var metallicPicked = Math.round(Context.swatch.metallic * 100) / 100;
-				var heightPicked = Math.round(Context.swatch.height * 100) / 100;
-				var opacityPicked = Math.round(Context.swatch.opacity * 100) / 100;
+				var baseRPicked = Math.round(Context.pickedColor.base.R * 10) / 10;
+				var baseGPicked = Math.round(Context.pickedColor.base.G * 10) / 10;
+				var baseBPicked = Math.round(Context.pickedColor.base.B * 10) / 10;
+				var normalRPicked = Math.round(Context.pickedColor.normal.R * 10) / 10;
+				var normalGPicked = Math.round(Context.pickedColor.normal.G * 10) / 10;
+				var normalBPicked = Math.round(Context.pickedColor.normal.B * 10) / 10;
+				var occlusionPicked = Math.round(Context.pickedColor.occlusion * 100) / 100;
+				var roughnessPicked = Math.round(Context.pickedColor.roughness * 100) / 100;
+				var metallicPicked = Math.round(Context.pickedColor.metallic * 100) / 100;
+				var heightPicked = Math.round(Context.pickedColor.height * 100) / 100;
+				var opacityPicked = Math.round(Context.pickedColor.opacity * 100) / 100;
 
 				var h = Id.handle();
 				h.color.R = baseRPicked;
@@ -69,6 +69,13 @@ class UIHeader {
 						if (ui.changed) UIMenu.keepOpen = true;
 					}, 10);
 				}
+				if (ui.button(tr("Add Swatch"))) {
+					var newSwatch = Project.makeSwatch(Context.pickedColor.base);
+					Context.setSwatch(newSwatch);
+					Project.raw.swatches.push(newSwatch);
+					UIStatus.inst.statusHandle.redraws = 1;
+				}
+				if (ui.isHovered) ui.tooltip(tr("Add picker color to swatches"));
 
 				ui.text(tr("Base") + ' ($baseRPicked,$baseGPicked,$baseBPicked)');
 				ui.text(tr("Normal") + ' ($normalRPicked,$normalGPicked,$normalBPicked)');
@@ -191,9 +198,11 @@ class UIHeader {
 				if (Context.tool != ToolFill) {
 					if (decalMask) {
 						Context.brushDecalMaskRadius = ui.slider(Context.brushDecalMaskRadiusHandle, tr("Radius"), 0.01, 2.0, true);
+						if (ui.isHovered) ui.tooltip(tr("Hold {brush_radius} and move mouse to the left or press {brush_radius_decrease} to decrease the radius\nHold {brush_radius} and move mouse to the right or press {brush_radius_increase} to increase the radius", ["brush_radius" => Config.keymap.brush_radius, "brush_radius_decrease" => Config.keymap.brush_radius_decrease, "brush_radius_increase" => Config.keymap.brush_radius_increase]));
 					}
 					else {
 						Context.brushRadius = ui.slider(Context.brushRadiusHandle, tr("Radius"), 0.01, 2.0, true);
+						if (ui.isHovered) ui.tooltip(tr("Hold {brush_radius} and move mouse to the left or press {brush_radius_decrease} to decrease the radius\nHold {brush_radius} and move mouse to the right or press {brush_radius_increase} to increase the radius", ["brush_radius" => Config.keymap.brush_radius, "brush_radius_decrease" => Config.keymap.brush_radius_decrease, "brush_radius_increase" => Config.keymap.brush_radius_increase]));	
 					}
 				}
 
@@ -216,12 +225,15 @@ class UIHeader {
 					}
 
 					Context.brushAngle = ui.slider(Context.brushAngleHandle, tr("Angle"), 0.0, 360.0, true, 1);
+					if (ui.isHovered) ui.tooltip(tr("Hold {brush_angle} and move mouse to the left to decrease the angle\nHold {brush_angle} and move mouse to the right to increase the angle", ["brush_angle" => Config.keymap.brush_angle]));
+
 					if (Context.brushAngleHandle.changed) {
 						MakeMaterial.parsePaintMaterial();
 					}
 				}
 
 				Context.brushOpacity = ui.slider(Context.brushOpacityHandle, tr("Opacity"), 0.0, 1.0, true);
+				if (ui.isHovered) ui.tooltip(tr("Hold {brush_opacity} and move mouse to the left to decrease the opacity\nHold {brush_opacity} and move mouse to the right to increase the opacity", ["brush_opacity" => Config.keymap.brush_opacity]));
 
 				if (Context.tool == ToolBrush || Context.tool == ToolEraser || decalMask) {
 					Context.brushHardness = ui.slider(Id.handle({value: Context.brushHardness}), tr("Hardness"), 0.0, 1.0, true);
@@ -326,10 +338,12 @@ class UIHeader {
 					}
 				}
 
+				#if arm_physics
 				if (Context.tool == ToolParticle) {
 					ui._x += 10 * ui.SCALE();
 					var physHandle = Id.handle({selected: false});
 				}
+				#end
 			}
 		}
 	}

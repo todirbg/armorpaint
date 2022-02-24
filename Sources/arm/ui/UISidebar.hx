@@ -41,6 +41,7 @@ class UISidebar {
 	public var hwnd1 = Id.handle();
 	public var htab0 = Id.handle();
 	public var htab1 = Id.handle();
+	public var hminimize = Id.handle();
 	var borderStarted = 0;
 	var borderHandle: Handle = null;
 
@@ -227,7 +228,7 @@ class UISidebar {
 						Context.brushOpacityHandle.value = Context.brushOpacity;
 					}
 					else if (Operator.shortcut(Config.keymap.brush_angle, ShortcutDown)) {
-						Context.brushAngle -= mouse.movementX / 5;
+						Context.brushAngle += mouse.movementX / 5;
 						Context.brushAngle = Std.int(Context.brushAngle) % 360;
 						if (Context.brushAngle < 0) Context.brushAngle += 360;
 						Context.brushAngleHandle.value = Context.brushAngle;
@@ -703,7 +704,20 @@ class UISidebar {
 			TabBrushes.draw();
 			TabParticles.draw();
 		}
-
+		if (Config.raw.layout[LayoutSidebarW] == 0) {
+			var width = Std.int(ui.ops.font.width(ui.fontSize, "<<") + 25 * ui.SCALE());
+			if (ui.window(hminimize, System.windowWidth() - width, 0, width, Std.int(ui.BUTTON_H()))) {
+				ui._w = width;
+				if (ui.button("<<"))
+					Config.raw.layout[LayoutSidebarW] = Context.maximizedSidebarWidth != 0 ? Context.maximizedSidebarWidth : Std.int(UISidebar.defaultWindowW * Config.raw.window_scale);
+			}
+		}
+		if (htab0.changed && (htab0.position == Context.lastHtab0Position) && Config.raw.layout[LayoutSidebarW] != 0) {
+			Context.maximizedSidebarWidth = Config.raw.layout[LayoutSidebarW];
+			Config.raw.layout[LayoutSidebarW] = 0 ;
+		}
+		Context.lastHtab0Position = htab0.position;
+		
 		ui.end();
 		g.begin(false);
 	}
