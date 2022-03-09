@@ -90,6 +90,7 @@ class Context {
 	public static var showEnvmapBlur = false;
 	public static var showEnvmapBlurHandle = new Handle({ selected: false });
 	public static var envmapAngle = 0.0;
+	public static var lightAngle = 0.0;
 	public static var drawWireframe = false;
 	public static var wireframeHandle = new Handle({ selected: false });
 	public static var drawTexels = false;
@@ -140,6 +141,7 @@ class Context {
 	public static var particleHitX = 0.0;
 	public static var particleHitY = 0.0;
 	public static var particleHitZ = 0.0;
+	public static var paintBody: arm.plugin.PhysicsBody = null;
 	#end
 
 	public static var layerFilter = 0;

@@ -388,6 +388,10 @@ class App {
 			var inNodes = UINodes.inst.show &&
 						  mx > UINodes.inst.wx && mx < UINodes.inst.wx + UINodes.inst.ww &&
 						  my > UINodes.inst.wy && my < UINodes.inst.wy + UINodes.inst.wh;
+			var inSwatches = UIStatus.inst.statustab.position == 4 && 
+						  mx > iron.App.x() && mx < iron.App.x() + System.windowWidth() - UIToolbar.inst.toolbarw - Config.raw.layout[LayoutSidebarW] &&
+						  my > System.windowHeight() - Config.raw.layout[LayoutStatusH];
+
 			if (dragAsset != null) {
 				if (inNodes) { // Create image texture
 					UINodes.inst.acceptAssetDrag(Project.assets.indexOf(dragAsset));
@@ -405,13 +409,16 @@ class App {
 			}
 			else if (dragSwatch != null) {
 				if (inNodes) { // Create RGB node
-					UINodes.inst.acceptSwatchDrag(Project.raw.swatches.indexOf(dragSwatch));
+					UINodes.inst.acceptSwatchDrag(dragSwatch);
 				}
 				else if (inMaterials) {
-					TabMaterials.acceptSwatchDrag(Project.raw.swatches.indexOf(dragSwatch));
+					TabMaterials.acceptSwatchDrag(dragSwatch);
 				}
 				else if (inLayers || inViewport) {
 					Layers.createColorLayer(dragSwatch.base.value);
+				}
+				else if (inSwatches) {
+					TabSwatches.acceptSwatchDrag(dragSwatch);
 				}
 				dragSwatch = null;
 			}
@@ -745,7 +752,9 @@ class App {
 		raw.brush_depth_reject = true;
 		raw.brush_angle_reject = true;
 		raw.brush_live = false;
-		raw.camera_speed = 1.0;
+		raw.camera_zoom_speed = 1.0;
+		raw.camera_pan_speed = 1.0;
+		raw.camera_rotation_speed = 1.0;
 		raw.zoom_direction = ZoomVertical;
 		raw.displace_strength = 0.0;
 		raw.show_asset_names = false;

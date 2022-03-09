@@ -158,24 +158,20 @@ class UIMenu {
 					menuFill(ui);
 					var light = iron.Scene.active.lights[0];
 					var lahandle = Id.handle();
-					if (lahandle.value < 0) {
-						lahandle.value += (Std.int(-lahandle.value / 360) + 1) * 360;
-					}
-					else if (lahandle.value > 360) {
-						lahandle.value -= Std.int(lahandle.value / 360) * 360;
-					}
+					lahandle.value = Context.lightAngle / Math.PI * 180;
 					menuAlign(ui);
-					var lightAngle = lahandle.value;
-					ui.slider(lahandle, tr("Light Angle"), 0.0, 360.0, true, 1);
-					var ldiff = lahandle.value - lightAngle;
-					if (ldiff != 0) {
-						ldiff = (ldiff) / 180.0 * Math.PI;
+					var newAngle = ui.slider(lahandle, tr("Light Angle"), 0.0, 360.0, true, 1) / 180 * Math.PI;
+					var ldiff = newAngle - Context.lightAngle;
+					if (Math.abs(ldiff) > 0.005) {
+						if (newAngle < 0) newAngle += (Std.int(-newAngle / (2 * Math.PI)) + 1) * 2 * Math.PI;
+						else if (newAngle > 2 * Math.PI) newAngle -= Std.int(newAngle / (2 * Math.PI)) * 2 * Math.PI;
+						Context.lightAngle = newAngle;
 						var m = iron.math.Mat4.identity();
 						m.self = kha.math.FastMatrix4.rotationZ(ldiff);
 						light.transform.local.multmat(m);
 						light.transform.decompose();
+						Context.ddirty = 2;
 					}
-					if (lahandle.changed) Context.ddirty = 2;
 
 					menuFill(ui);
 					var sxhandle = Id.handle();
