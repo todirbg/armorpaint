@@ -28,10 +28,12 @@ import arm.data.MaterialSlot;
 import arm.node.MakeMaterial;
 import arm.io.ImportAsset;
 import arm.io.ImportArm;
+import arm.io.ImportGpl;
 import arm.io.ImportBlend;
 import arm.io.ImportMesh;
 import arm.io.ImportTexture;
 import arm.io.ExportArm;
+import arm.io.ExportGpl;
 import arm.node.NodesBrush;
 import arm.Viewport;
 import arm.ProjectFormat;
@@ -111,7 +113,7 @@ class Project {
 			#elseif krom_android
 			filepath = Krom.savePath() + "/" + kha.Window.get(0).title + ".arm";
 			#else
-			projectSaveAs();
+			projectSaveAs(saveAndQuit);
 			return;
 			#end
 		}
@@ -128,13 +130,13 @@ class Project {
 		iron.App.notifyOnInit(_init);
 	}
 
-	public static function projectSaveAs() {
+	public static function projectSaveAs(saveAndQuit = false) {
 		UIFiles.show("arm", true, false, function(path: String) {
 			var f = UIFiles.filename;
 			if (f == "") f = tr("untitled");
 			filepath = path + Path.sep + f;
 			if (!filepath.endsWith(".arm")) filepath += ".arm";
-			projectSave();
+			projectSave(saveAndQuit);
 		});
 	}
 
@@ -271,6 +273,7 @@ class Project {
 			Project.setDefaultSwatches();
 			Context.swatch = Project.raw.swatches[0];
 			Context.pickedColor = Project.makeSwatch();
+			Context.colorPickerCallback = null;
 			History.reset();
 
 			MakeMaterial.parsePaintMaterial();
@@ -519,8 +522,9 @@ class Project {
 	}
 
 	public static function importSwatches(replaceExisting = false) {
-		UIFiles.show("arm", false, false, function(path: String) {
-			ImportArm.runSwatches(path, replaceExisting);
+		UIFiles.show("arm,gpl", false, false, function(path: String) {
+			if (Path.isGimpColorPalette(path)) ImportGpl.run(path, replaceExisting);
+			else ImportArm.runSwatches(path, replaceExisting);
 		});
 	}
 
@@ -596,15 +600,20 @@ class Project {
 	}
 
 	public static function exportSwatches() {
-		UIFiles.show("arm", true, false, function(path: String) {
+		UIFiles.show("arm,gpl", true, false, function(path: String) {
 			var f = UIFiles.filename;
 			if (f == "") f = tr("untitled");
-			ExportArm.runSwatches(path + Path.sep + f);
+			if (Path.isGimpColorPalette(f)) ExportGpl.run(path + Path.sep + f, f.substring(0, f.lastIndexOf(".")), Project.raw.swatches);
+			else ExportArm.runSwatches(path + Path.sep + f);
 		});
 	}
 
 	public static function makeSwatch(base = 0xffffffff): TSwatchColor {
 		return { base: base, opacity: 1.0, occlusion: 1.0, roughness: 0.0, metallic: 0.0, normal: 0xff8080ff, emission: 0.0, height: 0.0, subsurface: 0.0 };
+	}
+
+	public static function cloneSwatch(swatch: TSwatchColor): TSwatchColor {
+		return { base: swatch.base, opacity: swatch.opacity, occlusion: swatch.occlusion, roughness: swatch.roughness, metallic: swatch.metallic, normal: swatch.normal, emission: swatch.emission, height: swatch.height, subsurface: swatch.subsurface };
 	}
 
 	public static function setDefaultSwatches() {
@@ -618,6 +627,20 @@ class Project {
 	public static function getMaterialGroupByName(groupName: String): TNodeGroup {
 		for (g in materialGroups) if (g.canvas.name == groupName) return g;
 		return null;
+	}
+
+	public static function isMaterialGroupInUse(group: TNodeGroup): Bool {
+		var canvases: Array<TNodeCanvas> = [];
+		for (m in materials) canvases.push(m.canvas);
+		for (m in materialGroups) canvases.push(m.canvas);
+		for (canvas in canvases) {
+			for (n in canvas.nodes) {
+				if (n.type == "GROUP" && n.name == group.canvas.name) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }
 
