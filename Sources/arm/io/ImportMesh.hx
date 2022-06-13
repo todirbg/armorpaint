@@ -54,9 +54,7 @@ class ImportMesh {
 		#if (krom_android || krom_ios)
 		kha.Window.get(0).title = path.substring(path.lastIndexOf(Path.sep) + 1, path.lastIndexOf("."));
 		#end
-	}
 
-	static function finishImport() {
 		if (Context.mergedObject != null) {
 			Context.mergedObject.remove();
 			Data.deleteMesh(Context.mergedObject.data.handle);
@@ -99,7 +97,9 @@ class ImportMesh {
 		#if arm_physics
 		Context.paintBody = null;
 		#end
+		
 	}
+
 
 	public static function makeMesh(mesh: Dynamic, path: String) {
 		if (mesh == null || mesh.posa == null || mesh.nora == null || mesh.inda == null || mesh.posa.length == 0) {
@@ -150,8 +150,6 @@ class ImportMesh {
 				UVUtil.trianglemapCached = false;
 				UVUtil.dilatemapCached = false;
 
-				// Wait for addMesh calls to finish
-				iron.App.notifyOnInit(finishImport);
 			});
 		}
 
