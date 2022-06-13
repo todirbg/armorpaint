@@ -65,6 +65,8 @@ class Context {
 
 	public static var swatch: TSwatchColor;
 	public static var pickedColor: TSwatchColor = Project.makeSwatch();
+	public static var colorPickerCallback: TSwatchColor->Void = null;
+	public static var colorPickerPreviousTool = ToolBrush;
 	public static var materialIdPicked = 0;
 	public static var uvxPicked = 0.0;
 	public static var uvyPicked = 0.0;
@@ -141,6 +143,10 @@ class Context {
 	public static var particleHitX = 0.0;
 	public static var particleHitY = 0.0;
 	public static var particleHitZ = 0.0;
+	public static var lastParticleHitX = 0.0;
+	public static var lastParticleHitY = 0.0;
+	public static var lastParticleHitZ = 0.0;
+	public static var particleTimer: iron.system.Tween.TAnim = null;
 	public static var paintBody: arm.plugin.PhysicsBody = null;
 	#end
 
@@ -280,6 +286,28 @@ class Context {
 	public static function selectMaterial(i: Int) {
 		if (Project.materials.length <= i) return;
 		setMaterial(Project.materials[i]);
+	}
+
+	public static function setViewportMode(mode: ViewportMode) {
+		if (mode == viewportMode) return;
+
+		viewportMode = mode;
+		var deferred = Context.renderMode != RenderForward && (Context.viewportMode == ViewLit || Context.viewportMode == ViewPathTrace);
+		if (deferred) {
+			RenderPath.active.commands = RenderPathDeferred.commands;
+		}
+		// else if (Context.viewportMode == ViewPathTrace) {
+		// }
+		else {
+			if (RenderPathForward.path == null) {
+				RenderPathForward.init(RenderPath.active);
+			}
+			RenderPath.active.commands = RenderPathForward.commands;
+		}
+		var _workspace = UIHeader.inst.worktab.position;
+		UIHeader.inst.worktab.position = SpacePaint;
+		MakeMaterial.parseMeshMaterial();
+		UIHeader.inst.worktab.position = _workspace;
 	}
 
 	public static function setMaterial(m: MaterialSlot) {

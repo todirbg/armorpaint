@@ -72,7 +72,7 @@ class UIMenu {
 				if (menuButton(ui, tr("Import Font..."))) Project.importAsset("ttf,ttc,otf");
 				if (menuButton(ui, tr("Import Material..."))) Project.importMaterial();
 				if (menuButton(ui, tr("Import Brush..."))) Project.importBrush();
-				if (menuButton(ui, tr("Import Swatches..."))) Project.importAsset("arm");
+				if (menuButton(ui, tr("Import Swatches..."))) Project.importSwatches();
 				if (menuButton(ui, tr("Import Mesh..."))) Project.importMesh();
 				if (menuButton(ui, tr("Reimport Mesh"), Config.keymap.file_reimport_mesh)) Project.reimportMesh();
 				if (menuButton(ui, tr("Reimport Textures"), Config.keymap.file_reimport_textures)) Project.reimportTextures();
@@ -141,6 +141,7 @@ class UIMenu {
 				}
 				menuAlign(ui);
 				Context.envmapAngle = ui.slider(envaHandle, tr("Environment Angle"), 0.0, 360.0, true, 1) / 180.0 * Math.PI;
+				if (ui.isHovered) ui.tooltip(tr("{shortcut} and move mouse", ["shortcut" => Config.keymap.rotate_envmap]));
 				if (envaHandle.changed) Context.ddirty = 2;
 
 				if (Scene.active.lights.length > 0) {
@@ -161,6 +162,7 @@ class UIMenu {
 					lahandle.value = Context.lightAngle / Math.PI * 180;
 					menuAlign(ui);
 					var newAngle = ui.slider(lahandle, tr("Light Angle"), 0.0, 360.0, true, 1) / 180 * Math.PI;
+					if (ui.isHovered) ui.tooltip(tr("{shortcut} and move mouse", ["shortcut" => Config.keymap.rotate_light]));
 					var ldiff = newAngle - Context.lightAngle;
 					if (Math.abs(ldiff) > 0.005) {
 						if (newAngle < 0) newAngle += (Std.int(-newAngle / (2 * Math.PI)) + 1) * 2 * Math.PI;
@@ -254,39 +256,25 @@ class UIMenu {
 					tr("Metallic"),
 					tr("Opacity"),
 					tr("Height"),
+					tr("Emission"),
+					tr("Subsurface"),
 					tr("TexCoord"),
 					tr("Object Normal"),
 					tr("Material ID"),
 					tr("Object ID"),
 					tr("Mask")
 				];
+				var shortcuts = ["l", "b", "n", "o", "r", "m", "a", "h", "e", "s", "t", "1", "2", "3", "4"];
 				#if (kha_direct3d12 || kha_vulkan)
 				modes.push(tr("Path Traced"));
+				shortcuts.push("p");
 				#end
 				for (i in 0...modes.length) {
 					menuFill(ui);
-					ui.radio(modeHandle, i, modes[i]);
+					ui.radio(modeHandle, i, modes[i], Config.keymap.viewport_mode + ", " + shortcuts[i]);
 				}
 
-				Context.viewportMode = modeHandle.position;
-				if (modeHandle.changed) {
-					var deferred = Context.renderMode != RenderForward && (Context.viewportMode == ViewLit || Context.viewportMode == ViewPathTrace);
-					if (deferred) {
-						RenderPath.active.commands = RenderPathDeferred.commands;
-					}
-					// else if (Context.viewportMode == ViewPathTrace) {
-					// }
-					else {
-						if (RenderPathForward.path == null) {
-							RenderPathForward.init(RenderPath.active);
-						}
-						RenderPath.active.commands = RenderPathForward.commands;
-					}
-					var _workspace = UIHeader.inst.worktab.position;
-					UIHeader.inst.worktab.position = SpacePaint;
-					MakeMaterial.parseMeshMaterial();
-					UIHeader.inst.worktab.position = _workspace;
-				}
+				if (modeHandle.changed) Context.setViewportMode(modeHandle.position);
 			}
 			else if (menuCategory == MenuCamera) {
 				if (menuButton(ui, tr("Reset"), Config.keymap.view_reset)) {
@@ -351,7 +339,14 @@ class UIMenu {
 				menuFill(ui);
 				menuAlign(ui);
 				Context.cameraControls = Ext.inlineRadio(ui, Id.handle({ position: Context.cameraControls }), [tr("Orbit"), tr("Rotate"), tr("Fly")], Left);
+				var orbitAndRotateTooltip = tr("Orbit and Rotate mode:\n{rotate_shortcut} or move right mouse button to rotate.\n{zoom_shortcut} or scroll to zoom.\n{pan_shortcut} or move middle mouse to pan.", 
+				["rotate_shortcut" => Config.keymap.action_rotate, 
+				"zoom_shortcut" => Config.keymap.action_zoom,  
+				"pan_shortcut" => Config.keymap.action_pan,
+				]);
 
+				var flyTooltip = tr("Fly mode:\nHold the right mouse button and one of the following commands:\nmove mouse to rotate.\nw, up or scroll up to move forward.\ns, down or scroll down to move backward.\na or left to move left.\nd or right to move right.\ne to move up.\nq to move down.\nHold shift to move faster or alt to move slower.");
+				if (ui.isHovered) ui.tooltip(orbitAndRotateTooltip + "\n\n" + flyTooltip);
 				menuFill(ui);
 				menuAlign(ui);
 				Context.cameraType = Ext.inlineRadio(ui, Context.camHandle, [tr("Perspective"), tr("Orthographic")], Left);
@@ -446,7 +441,29 @@ class UIMenu {
 					// { lshw -C display }
 					#end
 
-					UIBox.showMessage(tr("About"), msg, true);
+					UIBox.showCustom(function(ui: Zui) {
+						if (ui.tab(Id.handle(), tr("About"))) {
+							Ext.textArea(ui, Id.handle({ text: msg }), false);
+
+							ui.row([1 / 3, 1 / 3, 1 / 3]);
+
+							#if (krom_windows || krom_linux || krom_darwin)
+							if (ui.button(tr("Copy"))) {
+								Krom.copyToClipboard(msg);
+							}
+							#else
+							ui.endElement();
+							#end
+
+							if (ui.button(tr("Contributors"))) {
+								File.loadUrl("https://github.com/armory3d/armorpaint/graphs/contributors");
+							}
+							if (ui.button(tr("OK"))) {
+								UIBox.show = false;
+								App.redrawUI();
+							}
+						}
+					});
 				}
 			}
 		}

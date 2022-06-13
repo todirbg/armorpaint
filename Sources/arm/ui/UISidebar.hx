@@ -3,6 +3,7 @@ package arm.ui;
 import haxe.io.Bytes;
 import kha.Image;
 import kha.System;
+import kha.input.KeyCode;
 import zui.Zui;
 import zui.Id;
 import iron.data.Data;
@@ -264,9 +265,11 @@ class UISidebar {
 		var isTyping = ui.isTyping || UIView2D.inst.ui.isTyping || UINodes.inst.ui.isTyping;
 		if (!isTyping) {
 			if (Operator.shortcut(Config.keymap.select_material, ShortcutDown)) {
+				UISidebar.inst.hwnd1.redraws = 2;
 				for (i in 1...10) if (kb.started(i + "")) Context.selectMaterial(i - 1);
 			}
 			else if (Operator.shortcut(Config.keymap.select_layer, ShortcutDown)) {
+				UISidebar.inst.hwnd0.redraws = 2;
 				for (i in 1...10) if (kb.started(i + "")) Context.selectLayer(i - 1);
 			}
 		}
@@ -364,6 +367,49 @@ class UISidebar {
 				else if (Operator.shortcut(Config.keymap.view_orbit_opposite)) Viewport.orbitOpposite();
 				else if (Operator.shortcut(Config.keymap.view_zoom_in, ShortcutRepeat)) Viewport.zoom(0.2);
 				else if (Operator.shortcut(Config.keymap.view_zoom_out, ShortcutRepeat)) Viewport.zoom(-0.2);
+				else if (Operator.shortcut(Config.keymap.viewport_mode)) {
+					UIMenu.draw(function(ui: Zui) {
+						var modeHandle = Id.handle();
+						modeHandle.position = Context.viewportMode;
+						ui.text(tr("Viewport Mode"), Right, ui.t.HIGHLIGHT_COL);
+						var modes = [
+							tr("Lit"),
+							tr("Base Color"),
+							tr("Normal"),
+							tr("Occlusion"),
+							tr("Roughness"),
+							tr("Metallic"),
+							tr("Opacity"),
+							tr("Height"),
+							tr("Emission"),
+							tr("Subsurface"),
+							tr("TexCoord"),
+							tr("Object Normal"),
+							tr("Material ID"),
+							tr("Object ID"),
+							tr("Mask")
+						];
+						var shortcuts = ["l", "b", "n", "o", "r", "m", "a", "h", "e", "s", "t", "1", "2", "3", "4"];
+						#if (kha_direct3d12 || kha_vulkan)
+						modes.push(tr("Path Traced"));
+						shortcuts.push("p");
+						#end
+						for (i in 0...modes.length) {
+							ui.radio(modeHandle, i, modes[i], shortcuts[i]);
+						}
+
+						var index = shortcuts.indexOf(Keyboard.keyCode(ui.key));
+						if (ui.isKeyPressed && index != -1) {
+							modeHandle.position = index;
+							ui.changed = true;
+							Context.setViewportMode(modeHandle.position);
+						}
+						else if (modeHandle.changed) {
+							Context.setViewportMode(modeHandle.position);
+							ui.changed = true;
+						}
+					}, 16 #if (kha_direct3d12 || kha_vulkan) + 1 #end );
+				}
 			}
 		}
 
@@ -434,11 +480,19 @@ class UISidebar {
 
 		#if arm_physics
 		if (Context.tool == ToolParticle && Context.particlePhysics && inViewport && !Context.paint2d) {
+			arm.util.ParticleUtil.initParticlePhysics();
 			var world = arm.plugin.PhysicsWorld.active;
 			world.lateUpdate();
 			Context.ddirty = 2;
 			Context.rdirty = 2;
 			if (mouse.started()) {
+				if (Context.particleTimer != null) {
+					iron.system.Tween.stop(Context.particleTimer);
+					Context.particleTimer.done();
+					Context.particleTimer = null;
+				}
+				History.pushUndo = true;
+				Context.particleHitX = Context.particleHitY = Context.particleHitZ = 0;
 				Scene.active.spawnObject(".Sphere", null, function(o: Object) {
 					iron.data.Data.getMaterial("Scene", ".Gizmo", function(md: MaterialData) {
 						var mo: MeshObject = cast o;
@@ -455,12 +509,15 @@ class UISidebar {
 						var body = new arm.plugin.PhysicsBody();
 						body.shape = arm.plugin.PhysicsBody.ShapeType.ShapeSphere;
 						body.mass = 1.0;
+						body.ccd = true;
+						mo.transform.radius /= 10; // Lower ccd radius
 						mo.addTrait(body);
+						mo.transform.radius *= 10;
 
 						var ray = iron.math.RayCaster.getRay(mouse.viewX, mouse.viewY, camera);
-						body.applyImpulse(ray.direction.mult(0.1));
+						body.applyImpulse(ray.direction.mult(0.15));
 
-						iron.system.Tween.timer(5, mo.remove);
+						Context.particleTimer = iron.system.Tween.timer(5, mo.remove);
 					});
 				});
 			}
@@ -468,10 +525,14 @@ class UISidebar {
 			var pairs = world.getContactPairs(Context.paintBody);
 			if (pairs != null) {
 				for (p in pairs) {
+					Context.lastParticleHitX = Context.particleHitX != 0 ? Context.particleHitX : p.posA.x;
+					Context.lastParticleHitY = Context.particleHitY != 0 ? Context.particleHitY : p.posA.y;
+					Context.lastParticleHitZ = Context.particleHitZ != 0 ? Context.particleHitZ : p.posA.z;
 					Context.particleHitX = p.posA.x;
 					Context.particleHitY = p.posA.y;
 					Context.particleHitZ = p.posA.z;
 					Context.pdirty = 1;
+					break; // 1 pair for now
 				}
 			}
 		}
@@ -581,7 +642,7 @@ class UISidebar {
 
 
 		#if arm_physics
-		if (Context.particlePhysics) {
+		if (Context.tool == ToolParticle && Context.particlePhysics) {
 			down = false;
 		}
 		#end
@@ -815,13 +876,19 @@ class UISidebar {
 			}
 
 			// Show picked material next to cursor
-			if (Context.tool == ToolPicker && Context.pickerSelectMaterial) {
+			if (Context.tool == ToolPicker && Context.pickerSelectMaterial && Context.colorPickerCallback == null) {
 				var img = Context.material.imageIcon;
 				#if kha_opengl
 				g.drawScaledImage(img, mx + 10, my + 10 + img.height, img.width, -img.height);
 				#else
 				g.drawImage(img, mx + 10, my + 10);
 				#end
+			}
+			if (Context.tool == ToolPicker && Context.colorPickerCallback != null) {
+				var img = Res.get("icons.k");
+				var rect = Res.tile50(img, ToolPicker, 0);
+					
+				g.drawSubImage(img, mx + 10, my + 10, rect.x, rect.y, rect.w, rect.h);
 			}
 
 			var cursorImg = Res.get("cursor.k");
@@ -872,7 +939,7 @@ class UISidebar {
 
 						g.color = kha.Color.fromFloats(1, 1, 1, decalAlpha);
 						var angle = (Context.brushAngle + Context.brushNodesAngle) * (Math.PI / 180);
-						g.pushRotation(-angle, decalX + psizex / 2, decalY + psizey / 2);
+						g.pushRotation(angle, decalX + psizex / 2, decalY + psizey / 2);
 						#if (kha_direct3d11 || kha_direct3d12 || kha_metal || kha_vulkan)
 						g.drawScaledImage(Context.decalImage, decalX, decalY, psizex, psizey);
 						#else

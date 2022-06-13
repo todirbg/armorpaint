@@ -4,6 +4,7 @@ import arm.sys.Path;
 import arm.sys.File;
 import arm.ui.UINodes;
 import arm.ui.UIBox;
+import arm.ui.UIHeader;
 import arm.Project;
 
 class ImportAsset {
@@ -39,6 +40,10 @@ class ImportAsset {
 				UINodes.inst.getNodes().nodesDrag = false;
 				UINodes.inst.hwnd.redraws = 2;
 			}
+			if (Context.tool == ToolColorId && Project.assetNames.length == 1) {
+				UIHeader.inst.headerHandle.redraws = 2;
+				Context.ddirty = 2;
+			}
 		}
 		else if (Path.isFont(path)) {
 			ImportFont.run(path);
@@ -51,6 +56,9 @@ class ImportAsset {
 		}
 		else if (Path.isFolder(path)) {
 			ImportFolder.run(path);
+		}
+		else if (Path.isGimpColorPalette(path)) {
+			ImportGpl.run(path, false);
 		}
 		else {
 			if (Context.enableImportPlugin(path)) {

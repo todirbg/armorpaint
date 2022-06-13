@@ -45,7 +45,6 @@ class UINodes {
 	var recompileMatFinal = false;
 	var nodeSearchSpawn: TNode = null;
 	var nodeSearchOffset = 0;
-	var nodeSearchLast = "";
 	var lastCanvas: TNodeCanvas = null;
 	var lastNodeSelected: TNode = null;
 	var releaseLink = false;
@@ -93,7 +92,16 @@ class UINodes {
 					var n = nodes.nodesSelected[0];
 					if (linkDrag.to_id == -1 && n.inputs.length > 0) {
 						linkDrag.to_id = n.id;
+						var fromType = node.outputs[linkDrag.from_socket].type;
+						// 1. step: Connect to the first socket.
 						linkDrag.to_socket = 0;
+						// 2. step: Try to find the first type-matching socket and use it if present.
+						for (socket in n.inputs) {
+							if (socket.type == fromType) {
+								linkDrag.to_socket = n.inputs.indexOf(socket);
+								break;
+							}
+						}
 						getCanvas(true).links.push(linkDrag);
 					}
 					else if (linkDrag.from_id == -1 && n.outputs.length > 0) {
@@ -319,28 +327,6 @@ class UINodes {
 	}
 
 	public static function onNodeRemove(node: TNode) {
-		if (node.type == "GROUP") { // Remove unused groups
-			var found = false;
-			var canvases: Array<TNodeCanvas> = [];
-			for (m in Project.materials) canvases.push(m.canvas);
-			for (m in Project.materialGroups) canvases.push(m.canvas);
-			for (canvas in canvases) {
-				for (n in canvas.nodes) {
-					if (n.type == "GROUP" && n.name == node.name) {
-						found = true;
-						break;
-					}
-				}
-			}
-			if (!found) {
-				for (g in Project.materialGroups) {
-					if (g.canvas.name == node.name) {
-						Project.materialGroups.remove(g);
-						break;
-					}
-				}
-			}
-		}
 	}
 
 	function onCanvasControl(): zui.Nodes.CanvasControl {
@@ -482,22 +468,16 @@ class UINodes {
 		var first = true;
 		UIMenu.draw(function(ui: Zui) {
 			ui.fill(0, 0, ui._w / ui.SCALE(), ui.t.ELEMENT_H * 8, ui.t.SEPARATOR_COL);
-			ui.textInput(searchHandle, "");
+			var search = ui.textInput(searchHandle, "", Left, true, true);
 			ui.changed = false;
 			if (first) {
 				first = false;
-				ui.startTextEdit(searchHandle); // Focus search bar
-				ui.textSelected = searchHandle.text;
 				searchHandle.text = "";
-				nodeSearchLast = "";
+				ui.startTextEdit(searchHandle); // Focus search bar
 			}
-			var search = searchHandle.text;
-			if (ui.textSelected != "") search = ui.textSelected;
 
-			if (search != nodeSearchLast) {
-				nodeSearchOffset = 0;
-				nodeSearchLast = search;
-			}
+			if (searchHandle.changed) nodeSearchOffset = 0;
+			
 			if (ui.isKeyPressed) { // Move selection
 				if (ui.key == kha.input.KeyCode.Down && nodeSearchOffset < 6) nodeSearchOffset++;
 				if (ui.key == kha.input.KeyCode.Up && nodeSearchOffset > 0) nodeSearchOffset--;
@@ -678,8 +658,18 @@ class UINodes {
 			ui.windowBorderBottom = Config.raw.layout[LayoutStatusH];
 			nodes.nodeCanvas(ui, c);
 			ui.inputEnabled = _inputEnabled;
-			if (isNodeMenuOperation) {
-				Zui.isCopy = Zui.isCut = Zui.isPaste = ui.isDeleteDown = false;
+
+			if (nodes.colorPickerCallback != null) {
+				Context.colorPickerPreviousTool = Context.tool;
+				Context.selectTool(ToolPicker);
+				var tmp = nodes.colorPickerCallback;
+				Context.colorPickerCallback = function(color: TSwatchColor) {
+					tmp(color.base);
+					UINodes.inst.hwnd.redraws = 2;
+					if (Config.raw.material_live)
+						UINodes.inst.canvasChanged();
+				};
+				nodes.colorPickerCallback = null;
 			}
 
 			// Remove nodes with unknown id for this canvas type
@@ -710,6 +700,10 @@ class UINodes {
 						i--;
 					}
 				}
+			}
+
+			if (isNodeMenuOperation) {
+				Zui.isCopy = Zui.isCut = Zui.isPaste = ui.isDeleteDown = false;
 			}
 
 			// Recompile material on change
@@ -909,7 +903,9 @@ class UINodes {
 			if (isGroupCategory) {
 				for (g in Project.materialGroups) {
 					ui.fill(0, 1, ui._w / ui.SCALE(), ui.t.BUTTON_H + 2, ui.t.ACCENT_SELECT_COL);
+					ui.fill(1, 1, ui._w / ui.SCALE() - 2, ui.t.BUTTON_H + 1, ui.t.SEPARATOR_COL);
 					ui.enabled = canPlaceGroup(g.canvas.name);
+					ui.row([5 / 6, 1 / 6]);
 					if (ui.button("      " + g.canvas.name, Left)) {
 						pushUndo();
 						var canvas = getCanvas(true);
@@ -919,6 +915,12 @@ class UINodes {
 						nodes.nodesSelected = [node];
 						nodes.nodesDrag = true;
 					}
+					ui.enabled = !Project.isMaterialGroupInUse(g);
+					if (ui.button("x", Center)) {
+						History.deleteMaterialGroup(g);
+						Project.materialGroups.remove(g);
+					}
+					
 					ui.enabled = true;
 				}
 			}

@@ -66,7 +66,7 @@ class Uniforms {
 			case "_brushHardness": {
 				var decal = Context.tool == ToolDecal || Context.tool == ToolText;
 				var decalMask = Operator.shortcut(Config.keymap.decal_mask + "+" + Config.keymap.action_paint, ShortcutDown);
-				if (Context.tool != ToolBrush && Context.tool != ToolEraser && !decalMask) return 1.0;
+				if (Context.tool != ToolBrush && Context.tool != ToolEraser && Context.tool != ToolClone && !decalMask) return 1.0;
 				var val = Context.brushHardness * Context.brushNodesHardness;
 				var pen = Input.getPen();
 				if (Config.raw.pressure_hardness && pen.down()) {
@@ -159,7 +159,7 @@ class Uniforms {
 				if (Config.raw.pressure_angle && pen.down()) {
 					angle *= pen.pressure * Config.raw.pressure_sensitivity;
 				}
-				vec.set(Math.cos(angle), Math.sin(angle), 0);
+				vec.set(Math.cos(-angle), Math.sin(-angle), 0);
 				return vec;
 			}
 			case "_texpaintSize": {
@@ -218,6 +218,11 @@ class Uniforms {
 			case "_particleHit": {
 				v = iron.object.Uniforms.helpVec;
 				v.set(Context.particleHitX, Context.particleHitY, Context.particleHitZ);
+				return v;
+			}
+			case "_particleHitLast": {
+				v = iron.object.Uniforms.helpVec;
+				v.set(Context.lastParticleHitX, Context.lastParticleHitY, Context.lastParticleHitZ);
 				return v;
 			}
 			#end

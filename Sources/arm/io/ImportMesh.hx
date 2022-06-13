@@ -95,6 +95,10 @@ class ImportMesh {
 		#if (kha_direct3d12 || kha_vulkan)
 		arm.render.RenderPathRaytrace.ready = false;
 		#end
+
+		#if arm_physics
+		Context.paintBody = null;
+		#end
 	}
 
 	public static function makeMesh(mesh: Dynamic, path: String) {

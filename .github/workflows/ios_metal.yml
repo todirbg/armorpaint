@@ -3,10 +3,10 @@ name: iOS (Metal)
 on:
   push:
     branches:
-    - master
+    - main
   pull_request:
     branches:
-    - master
+    - main
 
 jobs:
   build:
@@ -14,10 +14,10 @@ jobs:
     runs-on: macOS-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Get Submodules
       run: git submodule update --init --recursive
-    - name: Get Node.js
-      run: git clone https://github.com/armory3d/nodejs_bin.git --depth 1
+    - name: Clone plugins
+      run: git clone https://github.com/armory3d/armorpaint_plugins armorcore/Libraries/plugins
     - name: Compile
-      run: nodejs_bin/node-osx armorcore/make ios -g metal
+      run: armorcore/Kinc/make --from armorcore ios -g metal

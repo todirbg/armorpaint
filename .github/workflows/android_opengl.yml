@@ -1,4 +1,4 @@
-name: macOS (Metal)
+name: Android (OpenGL)
 
 on:
   push:
@@ -11,11 +11,11 @@ on:
 jobs:
   build:
 
-    runs-on: macOS-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
     - name: Get Submodules
       run: git submodule update --init --recursive
     - name: Compile
-      run: armorcore/Kinc/make --from armorcore -g metal
+      run: armorcore/Kinc/make --from armorcore android -g opengl

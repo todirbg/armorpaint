@@ -8,7 +8,9 @@ import iron.system.Input;
 import arm.node.MakeMaterial;
 import arm.util.UVUtil;
 import arm.util.RenderUtil;
+import arm.io.ImportAsset;
 import arm.io.ImportFont;
+import arm.sys.Path;
 import arm.ProjectFormat.TSwatchColor;
 import arm.Enums;
 
@@ -39,11 +41,35 @@ class UIHeader {
 				if (Context.colorIdPicked) {
 					ui.image(RenderPath.active.renderTargets.get("texpaint_colorid").image, 0xffffffff, 64);
 				}
-				if (ui.button(tr("Clear"))) Context.colorIdPicked = false;
+				if (ui.button(tr("Clear"))) {
+					Context.colorIdPicked = false;
+					UIToolbar.inst.toolbarHandle.redraws = 1;
+				}
 				ui.text(tr("Color ID Map"));
-				var cid = ui.combo(Context.colorIdHandle, App.enumTexts("TEX_IMAGE"), tr("Color ID"));
-				if (Context.colorIdHandle.changed) Context.ddirty = 2;
-				if (Project.assets.length > 0) ui.image(Project.getImage(Project.assets[cid]));
+				if (Project.assetNames.length > 0) {
+					var cid = ui.combo(Context.colorIdHandle, App.enumTexts("TEX_IMAGE"), tr("Color ID"));
+					if (Context.colorIdHandle.changed) {
+						Context.ddirty = 2;
+						Context.colorIdPicked = false;
+						UIToolbar.inst.toolbarHandle.redraws = 1;
+					}
+					ui.image(Project.getImage(Project.assets[cid]));
+				}
+				if (ui.button(tr("Import"))) {
+					UIFiles.show(Path.textureFormats.join(","), false, true, function(path: String) {
+						ImportAsset.run(path, -1.0, -1.0, true, false);
+
+						Context.colorIdHandle.position = Project.assetNames.length - 1;
+						for (a in Project.assets) {
+							// Already imported
+							if (a.file == path) Context.colorIdHandle.position = Project.assets.indexOf(a);
+						}
+						Context.ddirty = 2;
+						Context.colorIdPicked = false;
+						UIToolbar.inst.toolbarHandle.redraws = 1;
+						UIStatus.inst.statusHandle.redraws = 2;
+					});
+				}
 			}
 			else if (Context.tool == ToolPicker) {
 				var baseRPicked = Math.round(Context.pickedColor.base.R * 10) / 10;
@@ -69,7 +95,7 @@ class UIHeader {
 					var uiy = ui._y;
 					App.dragOffX = -(mouse.x - uix - ui._windowX - 3);
 					App.dragOffY = -(mouse.y - uiy - ui._windowY + 1);
-					App.dragSwatch = Project.makeSwatch(h.color.value);
+					App.dragSwatch = Project.cloneSwatch(Context.pickedColor);
 				}
 				if (ui.isHovered) ui.tooltip(tr("Drag and drop picked color to swatches, materials, layers or to the node editor."));
 				if (ui.isHovered && ui.inputReleased) {
@@ -81,7 +107,7 @@ class UIHeader {
 					}, 10);
 				}
 				if (ui.button(tr("Add Swatch"))) {
-					var newSwatch = Project.makeSwatch(Context.pickedColor.base);
+					var newSwatch = Project.cloneSwatch(Context.pickedColor);
 					Context.setSwatch(newSwatch);
 					Project.raw.swatches.push(newSwatch);
 					UIStatus.inst.statusHandle.redraws = 1;
@@ -246,7 +272,7 @@ class UIHeader {
 				Context.brushOpacity = ui.slider(Context.brushOpacityHandle, tr("Opacity"), 0.0, 1.0, true);
 				if (ui.isHovered) ui.tooltip(tr("Hold {brush_opacity} and move mouse to the left to decrease the opacity\nHold {brush_opacity} and move mouse to the right to increase the opacity", ["brush_opacity" => Config.keymap.brush_opacity]));
 
-				if (Context.tool == ToolBrush || Context.tool == ToolEraser || decalMask) {
+				if (Context.tool == ToolBrush || Context.tool == ToolEraser || Context.tool == ToolClone || decalMask) {
 					Context.brushHardness = ui.slider(Id.handle({ value: Context.brushHardness }), tr("Hardness"), 0.0, 1.0, true);
 				}
 
@@ -287,7 +313,14 @@ class UIHeader {
 				if (Context.tool == ToolText) {
 					var h = Id.handle();
 					h.text = Context.textToolText;
-					Context.textToolText = ui.textInput(h, "");
+					var w = ui._w;
+					if (ui.textSelectedHandle == h || ui.submitTextHandle == h) {
+						ui._w *= 3;
+					}
+					
+					Context.textToolText = ui.textInput(h, "", Left, true, true);
+					ui._w = w;
+
 					if (h.changed) {
 						ui.g.end();
 						RenderUtil.makeTextPreview();
