@@ -40,10 +40,6 @@ else {
 project.addAssets("Assets/meshes/*", { destination: "data/meshes/{name}" });
 project.addAssets("Libraries/armorbase/Assets/licenses/**", { destination: "data/licenses/{name}" });
 project.addAssets("Libraries/armorbase/Assets/themes/*.json", { destination: "data/themes/{name}" });
-if (metal) {
-	project.addShaders("Libraries/armorbase/Shaders/common/metal/*.glsl", { embed: snapshot});
-	project.addAssets("Libraries/armorbase/Assets/common/metal/*", { destination: "data/{name}" });
-}
 project.addDefine("js-es=6");
 project.addParameter("--macro include('arm.node.brush')");
 project.addDefine("kha_no_ogg");
@@ -83,11 +79,6 @@ else if (process.platform === "linux") {
 else if (process.platform === "darwin") {
 	project.addDefine("krom_darwin");
 	project.addDefine("kha_darwin");
-}
-
-if (android || ios) {
-	project.addDefine("arm_touchui"); // Use touch friendly UI
-	project.addDefine("zui_touchui");
 }
 
 if (debug) {

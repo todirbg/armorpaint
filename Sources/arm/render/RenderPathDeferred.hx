@@ -23,21 +23,6 @@ class RenderPathDeferred {
 
 		path = _path;
 
-		#if kha_metal
-		{
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_depth_r8");
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_depth_rgba32");
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_depth_rgba64");
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_r8");
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_rgba32");
-			path.loadShader("clear_pass/clear_pass/clear_pass_color_rgba64");
-			path.loadShader("clear_pass/clear_pass/clear_pass_depth_r8");
-			path.loadShader("clear_pass/clear_pass/clear_pass_depth_rgba32");
-			path.loadShader("clear_pass/clear_pass/clear_pass_depth_rgba64");
-			path.clearShader = "clear_pass/clear_pass/clear_pass";
-		}
-		#end
-
 		path.createDepthBuffer("main", "DEPTH24");
 
 		{
@@ -555,6 +540,12 @@ class RenderPathDeferred {
 				t.scale = Inc.getSuperSampling();
 				path.createRenderTarget(t);
 			}
+
+			#if kha_metal
+			// TODO: Fix depth attach for gbuffer0_copy on metal
+			// Use resize to re-create buffers from scratch for now
+			path.resize();
+			#end
 		}
 	}
 
@@ -563,7 +554,7 @@ class RenderPathDeferred {
 		path.bindTarget("gbuffer0_copy", "tex0");
 		path.bindTarget("gbuffer1_copy", "tex1");
 		path.bindTarget("gbuffer2_copy", "tex2");
-		path.drawShader("shader_datas/copy_mrt3_pass/copy_mrt3_pass");
+		path.drawShader("shader_datas/copy_mrt3_pass/copy_mrt3RGBA64_pass");
 	}
 
 	static function drawSplit() {
