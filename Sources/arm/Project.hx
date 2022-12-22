@@ -92,7 +92,7 @@ class Project {
 						ImportArm.runProject(path);
 
 						if (current != null) current.begin(false);
-						UIBox.show = false;
+						UIBox.hide();
 					}
 					if (ui.isHovered) ui.tooltip(path);
 				}
@@ -158,13 +158,12 @@ class Project {
 				@:privateAccess ui.endElement();
 				ui.row([0.5, 0.5]);
 				if (ui.button(tr("Cancel"))) {
-					UIBox.show = false;
+					UIBox.hide();
 				}
 				if (ui.button(tr("OK")) || ui.isReturnDown) {
 					Project.projectNew();
 					Viewport.scaleToBounds();
-					UIBox.show = false;
-					App.redrawUI();
+					UIBox.hide();
 				}
 			}
 		});
@@ -384,7 +383,8 @@ class Project {
 		#end
 
 		UIBox.showCustom(function(ui: Zui) {
-			if (ui.tab(Id.handle(), tr("Import Mesh"))) {
+			var tabVertical = Config.raw.touch_ui;
+			if (ui.tab(Id.handle(), tr("Import Mesh"), tabVertical)) {
 
 				var isObj8 = false;
 				if (path.toLowerCase().endsWith(".obj")) {
@@ -430,11 +430,10 @@ class Project {
 
 				ui.row([0.45, 0.45, 0.1]);
 				if (ui.button(tr("Cancel"))) {
-					UIBox.show = false;
+					UIBox.hide();
 				}
 				if (ui.button(tr("Import")) || ui.isReturnDown) {
-					UIBox.show = false;
-					App.redrawUI();
+					UIBox.hide();
 					function doImport() {
 						if(isObj8 == true)	ImportMesh.run(path, clearLayers, replaceExisting, isObj8);
 						else ImportMesh.run(path, clearLayers, replaceExisting);
@@ -465,7 +464,8 @@ class Project {
 
 	public static function unwrapMeshBox(mesh: Dynamic, done: Void->Void) {
 		UIBox.showCustom(function(ui: Zui) {
-			if (ui.tab(Id.handle(), tr("Unwrap Mesh"))) {
+			var tabVertical = Config.raw.touch_ui;
+			if (ui.tab(Id.handle(), tr("Unwrap Mesh"), tabVertical)) {
 
 				var unwrapPlugins = [];
 				if (BoxPreferences.filesPlugin == null) {
@@ -482,11 +482,10 @@ class Project {
 
 				ui.row([0.5, 0.5]);
 				if (ui.button(tr("Cancel"))) {
-					UIBox.show = false;
+					UIBox.hide();
 				}
 				if (ui.button(tr("Unwrap")) || ui.isReturnDown) {
-					UIBox.show = false;
-					App.redrawUI();
+					UIBox.hide();
 					function doImport() {
 						if (unwrapBy == unwrapPlugins.length - 1) {
 							MeshUtil.equirectUnwrap(mesh);

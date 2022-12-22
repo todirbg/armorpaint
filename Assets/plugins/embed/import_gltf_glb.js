@@ -5,10 +5,11 @@ class R {
 }
 let r = new R();
 
-// uv_unwrap.js
+// import_gltf_glb.js
 let import_gltf_glb = function(path, done) {
 	iron.Data.getBlob(path, function(b) {
-		let buf = new Uint8Array(r.buffer, a._init(b.bytes.length), b.bytes.length);
+		let buf_off = a._init(b.bytes.length); //// Allocate r.buffer
+		let buf = new Uint8Array(r.buffer, buf_off, b.bytes.length);
 		for (let i = 0; i < b.bytes.length; ++i) buf[i] = b.readU8(i);
 		a._parse();
 		let vertex_count = a._get_vertex_count();
@@ -16,7 +17,8 @@ let import_gltf_glb = function(path, done) {
 		let inda = new Uint32Array(r.buffer, a._get_indices(), index_count);
 		let posa = new Int16Array(r.buffer, a._get_positions(), vertex_count * 4);
 		let nora = new Int16Array(r.buffer, a._get_normals(), vertex_count * 2);
-		let texa = new Int16Array(r.buffer, a._get_uvs(), vertex_count * 2);
+		let uvs = a._get_uvs();
+		let texa = uvs == 0 ? null : new Int16Array(r.buffer, uvs, vertex_count * 2);
 		let name = path.split("\\").pop().split("/").pop().split(".").shift();
 		done({
 			name: name,
@@ -27,7 +29,7 @@ let import_gltf_glb = function(path, done) {
 			scale_pos: a._get_scale_pos(),
 			scale_tex: 1.0
 		});
-		a._destroy();
+		// a._destroy(); //// Destroys r.buffer
 		iron.Data.deleteBlob(path);
 	});
 }
