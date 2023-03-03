@@ -16,7 +16,7 @@ class ImportMesh {
 
 	static var clearLayers = true;
 
-	public static function run(path: String, _clearLayers = true, replaceExisting = true) {
+	public static function run(path: String, _clearLayers = true, replaceExisting = true, isObj8 = false) {
 		if (!Path.isMesh(path)) {
 			if (!Context.enableImportPlugin(path)) {
 				Console.error(Strings.error1());
@@ -32,7 +32,10 @@ class ImportMesh {
 		#end
 
 		var p = path.toLowerCase();
-		if (p.endsWith(".obj")) ImportObj.run(path, replaceExisting);
+		if (p.endsWith(".obj")){
+			if(isObj8 == true)	ImportObj8.run(path, replaceExisting);			
+			else ImportObj.run(path, replaceExisting);					
+		}
 		else if (p.endsWith(".fbx")) ImportFbx.run(path, replaceExisting);
 		else if (p.endsWith(".blend")) ImportBlendMesh.run(path, replaceExisting);
 		else {
@@ -48,9 +51,7 @@ class ImportMesh {
 		#if (krom_android || krom_ios)
 		kha.Window.get(0).title = path.substring(path.lastIndexOf(Path.sep) + 1, path.lastIndexOf("."));
 		#end
-	}
-
-	static function finishImport() {
+		
 		if (Context.raw.mergedObject != null) {
 			Context.raw.mergedObject.remove();
 			Data.deleteMesh(Context.raw.mergedObject.data.handle);
@@ -144,8 +145,6 @@ class ImportMesh {
 				UVUtil.trianglemapCached = false;
 				UVUtil.dilatemapCached = false;
 
-				// Wait for addMesh calls to finish
-				iron.App.notifyOnInit(finishImport);
 			});
 		}
 

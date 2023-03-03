@@ -383,15 +383,37 @@ class Project {
 		UIBox.showCustom(function(ui: Zui) {
 			var tabVertical = Config.raw.touch_ui;
 			if (ui.tab(Id.handle(), tr("Import Mesh"), tabVertical)) {
-
+				var isObj8 = false;
+				
 				if (path.toLowerCase().endsWith(".obj")) {
-					Context.raw.splitBy = ui.combo(Id.handle(), [
-						tr("Object"),
-						tr("Group"),
-						tr("Material"),
-						tr("UDIM Tile"),
-					], tr("Split By"), true);
-					if (ui.isHovered) ui.tooltip(tr("Split .obj mesh into objects"));
+					Data.getBlob(path, function(b) {	
+
+						var input = new haxe.io.BytesInput(b.bytes);
+						var char = input.readLine();
+						if(char == "I" || char == "A"){
+							char = input.readLine();
+							if(char == "800"){
+								char = input.readLine();
+								if(char == "OBJ"){
+									isObj8 = true;
+								}
+							}
+						}
+					});
+					Data.deleteBlob(path);
+					if(isObj8 == true){
+						replaceExisting = !ui.check(Id.handle({selected: !Context.raw.parseTransform}), tr("Append"));
+						if (ui.isHovered) ui.tooltip(tr("Append new mesh to existing"));	
+					}
+					else{									  
+						Context.raw.splitBy = ui.combo(Id.handle(), [
+							tr("Object"),
+							tr("Group"),
+							tr("Material"),
+							tr("UDIM Tile"),
+						], tr("Split By"), true);
+						if (ui.isHovered) ui.tooltip(tr("Split .obj mesh into objects"));
+					}
 				}
 
 				if (path.toLowerCase().endsWith(".fbx")) {
@@ -411,7 +433,8 @@ class Project {
 				if (ui.button(tr("Import")) || ui.isReturnDown) {
 					UIBox.hide();
 					function doImport() {
-						ImportMesh.run(path, clearLayers, replaceExisting);
+						if(isObj8 == true)	ImportMesh.run(path, clearLayers, replaceExisting, isObj8);
+						else ImportMesh.run(path, clearLayers, replaceExisting);
 					}
 					#if (krom_android || krom_ios)
 					arm.App.notifyOnNextFrame(function() {
