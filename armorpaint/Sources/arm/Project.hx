@@ -383,6 +383,8 @@ class Project {
 		UIBox.showCustom(function(ui: Zui) {
 			var tabVertical = Config.raw.touch_ui;
 			if (ui.tab(Id.handle(), tr("Import Mesh"), tabVertical)) {
+			
+				//open file and check if the first 3 lines are obj8 format header, set variable to true if so
 				var isObj8 = false;
 				
 				if (path.toLowerCase().endsWith(".obj")) {
@@ -402,7 +404,7 @@ class Project {
 					});
 					Data.deleteBlob(path);
 					if(isObj8 == true){
-						replaceExisting = !ui.check(Id.handle({selected: !Context.raw.parseTransform}), tr("Append"));
+						replaceExisting = !ui.check(Id.handle({selected: !Context.raw.parseTransform}), tr("Append")); //show "Append" clickbox if the mesh is obj8 format
 						if (ui.isHovered) ui.tooltip(tr("Append new mesh to existing"));	
 					}
 					else{									  
