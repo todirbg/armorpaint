@@ -17,6 +17,7 @@ import iron.Scene;
 import arm.shader.MakeMaterial;
 import arm.Viewport;
 import arm.util.UVUtil;
+import arm.util.RenderUtil;
 import arm.data.LayerSlot;
 import arm.data.BrushSlot;
 import arm.data.FontSlot;
@@ -37,9 +38,10 @@ class UISidebar {
 	public var hwnd1 = Id.handle();
 	public var htab0 = Id.handle();
 	public var htab1 = Id.handle();
-	public var hminimize = Id.handle();
+	public var hminimized = Id.handle();
 	var borderStarted = 0;
 	var borderHandle: Handle = null;
+	var action_paint_remap = "";
 
 	public function new() {
 		inst = this;
@@ -562,6 +564,34 @@ class UISidebar {
 		var mouse = Input.getMouse();
 		var kb = Input.getKeyboard();
 
+		// Same mapping for paint and rotate (predefined in touch keymap)
+		if (mouse.started() && Config.keymap.action_paint == Config.keymap.action_rotate) {
+			action_paint_remap = Config.keymap.action_paint;
+			RenderUtil.pickPosNorTex();
+			#if kha_metal
+			RenderUtil.pickPosNorTex(); // Flush
+			#end
+			var isMesh = Math.abs(Context.raw.posXPicked) < 50 && Math.abs(Context.raw.posYPicked) < 50 && Math.abs(Context.raw.posZPicked) < 50;
+			var penOnly = Context.raw.penPaintingOnly;
+			var isPen = penOnly && Input.getPen().down();
+			// Mesh picked - disable rotate
+			// Pen painting only - rotate with touch, paint with pen
+			if ((isMesh && !penOnly) || isPen) {
+				Config.keymap.action_rotate = "";
+				Config.keymap.action_paint = action_paint_remap;
+			}
+			// World sphere picked - disable paint
+			else {
+				Config.keymap.action_paint = "";
+				Config.keymap.action_rotate = action_paint_remap;
+			}
+		}
+		else if (!mouse.down() && action_paint_remap != "") {
+			Config.keymap.action_rotate = action_paint_remap;
+			Config.keymap.action_paint = action_paint_remap;
+			action_paint_remap = "";
+		}
+
 		if (Context.raw.brushStencilImage != null && Operator.shortcut(Config.keymap.stencil_transform, ShortcutDown)) {
 			var r = getBrushStencilRect();
 			if (mouse.started("left")) {
@@ -810,13 +840,14 @@ class UISidebar {
 		}
 		if (Config.raw.layout[LayoutSidebarW] == 0) {
 			var width = Std.int(ui.ops.font.width(ui.fontSize, "<<") + 25 * ui.SCALE());
-			if (ui.window(hminimize, System.windowWidth() - width, 0, width, Std.int(ui.BUTTON_H()))) {
+			if (ui.window(hminimized, System.windowWidth() - width, 0, width, Std.int(ui.BUTTON_H()))) {
 				ui._w = width;
-				if (ui.button("<<"))
+				if (ui.button("<<")) {
 					Config.raw.layout[LayoutSidebarW] = Context.raw.maximizedSidebarWidth != 0 ? Context.raw.maximizedSidebarWidth : Std.int(UISidebar.defaultWindowW * Config.raw.window_scale);
+				}
 			}
 		}
-		if (htab0.changed && (htab0.position == Context.raw.lastHtab0Position) && Config.raw.layout[LayoutSidebarW] != 0) {
+		else if (htab0.changed && (htab0.position == Context.raw.lastHtab0Position)) {
 			Context.raw.maximizedSidebarWidth = Config.raw.layout[LayoutSidebarW];
 			Config.raw.layout[LayoutSidebarW] = 0 ;
 		}
