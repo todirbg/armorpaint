@@ -32,7 +32,7 @@ class UIHeader {
 
 	@:access(zui.Zui)
 	public function renderUI(g: kha.graphics2.Graphics) {
-		var ui = UISidebar.inst.ui;
+		var ui = UIBase.inst.ui;
 
 		var panelx = iron.App.x();
 		if (ui.window(headerHandle, panelx, headerh, System.windowWidth() - UIToolbar.inst.toolbarw - Config.raw.layout[LayoutSidebarW], Std.int(defaultHeaderH * ui.SCALE()))) {
@@ -94,6 +94,7 @@ class UIHeader {
 						UIToolbar.inst.toolbarHandle.redraws = 1;
 						UIHeader.inst.headerHandle.redraws = 1;
 						Context.raw.layerPreviewDirty = true;
+						App.updateFillLayers();
 					}
 					App.notifyOnNextFrame(_next);
 					History.newWhiteMask();
@@ -177,7 +178,7 @@ class UIHeader {
 					App.notifyOnNextFrame(function() {
 						Context.raw.layerPreviewDirty = true;
 					});
-					UISidebar.inst.hwnd0.redraws = 2;
+					UIBase.inst.hwnd0.redraws = 2;
 					History.pushUndo = true;
 				}
 

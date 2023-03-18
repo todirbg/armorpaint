@@ -27,9 +27,9 @@ import arm.ProjectFormat;
 import arm.Res;
 
 @:access(zui.Zui)
-class UISidebar {
+class UIBase {
 
-	public static var inst: UISidebar;
+	public static var inst: UIBase;
 	public static inline var defaultWindowW = 280;
 	public var tabx = 0;
 	public var show = true;
@@ -42,6 +42,7 @@ class UISidebar {
 	var borderStarted = 0;
 	var borderHandle: Handle = null;
 	var action_paint_remap = "";
+	var operatorSearchOffset = 0;
 
 	public function new() {
 		inst = this;
@@ -154,6 +155,7 @@ class UISidebar {
 
 	public function update() {
 		updateUI();
+		Operator.update();
 
 		for (p in Plugin.plugins) if (p.update != null) p.update();
 
@@ -259,11 +261,11 @@ class UISidebar {
 		var isTyping = ui.isTyping || UIView2D.inst.ui.isTyping || UINodes.inst.ui.isTyping;
 		if (!isTyping) {
 			if (Operator.shortcut(Config.keymap.select_material, ShortcutDown)) {
-				UISidebar.inst.hwnd1.redraws = 2;
+				UIBase.inst.hwnd1.redraws = 2;
 				for (i in 1...10) if (kb.started(i + "")) Context.selectMaterial(i - 1);
 			}
 			else if (Operator.shortcut(Config.keymap.select_layer, ShortcutDown)) {
-				UISidebar.inst.hwnd0.redraws = 2;
+				UIBase.inst.hwnd0.redraws = 2;
 				for (i in 1...10) if (kb.started(i + "")) Context.selectLayer(i - 1);
 			}
 		}
@@ -405,6 +407,8 @@ class UISidebar {
 					}, 16 #if (kha_direct3d12 || kha_vulkan) + 1 #end );
 				}
 			}
+
+			if (Operator.shortcut(Config.keymap.operator_search)) operatorSearch();
 		}
 
 		if (Context.raw.brushCanLock || Context.raw.brushLocked) {
@@ -531,6 +535,52 @@ class UISidebar {
 			}
 		}
 		#end
+	}
+
+	function operatorSearch() {
+		var kb = Input.getKeyboard();
+		var searchHandle = Id.handle();
+		var first = true;
+		UIMenu.draw(function(ui: Zui) {
+			ui.fill(0, 0, ui._w / ui.SCALE(), ui.t.ELEMENT_H * 8, ui.t.SEPARATOR_COL);
+			var search = ui.textInput(searchHandle, "", Left, true, true);
+			ui.changed = false;
+			if (first) {
+				first = false;
+				searchHandle.text = "";
+				ui.startTextEdit(searchHandle); // Focus search bar
+			}
+
+			if (searchHandle.changed) operatorSearchOffset = 0;
+
+			if (ui.isKeyPressed) { // Move selection
+				if (ui.key == kha.input.KeyCode.Down && operatorSearchOffset < 6) operatorSearchOffset++;
+				if (ui.key == kha.input.KeyCode.Up && operatorSearchOffset > 0) operatorSearchOffset--;
+			}
+			var enter = kb.down("enter");
+			var count = 0;
+			var BUTTON_COL = ui.t.BUTTON_COL;
+
+			for (n in Reflect.fields(Config.keymap)) {
+				if (n.indexOf(search) >= 0) {
+					ui.t.BUTTON_COL = count == operatorSearchOffset ? ui.t.HIGHLIGHT_COL : ui.t.SEPARATOR_COL;
+					if (ui.button(n, Left, Reflect.field(Config.keymap, n)) || (enter && count == operatorSearchOffset)) {
+						if (enter) {
+							ui.changed = true;
+							count = 6; // Trigger break
+						}
+						Operator.run(n);
+					}
+					if (++count > 6) break;
+				}
+			}
+
+			if (enter && count == 0) { // Hide popup on enter when command is not found
+				ui.changed = true;
+				searchHandle.text = "";
+			}
+			ui.t.BUTTON_COL = BUTTON_COL;
+		}, 8, -1, -1);
 	}
 
 	public function toggleDistractFree() {
@@ -850,7 +900,7 @@ class UISidebar {
 			if (ui.window(hminimized, System.windowWidth() - width, 0, width, Std.int(ui.BUTTON_H()))) {
 				ui._w = width;
 				if (ui.button("<<")) {
-					Config.raw.layout[LayoutSidebarW] = Context.raw.maximizedSidebarWidth != 0 ? Context.raw.maximizedSidebarWidth : Std.int(UISidebar.defaultWindowW * Config.raw.window_scale);
+					Config.raw.layout[LayoutSidebarW] = Context.raw.maximizedSidebarWidth != 0 ? Context.raw.maximizedSidebarWidth : Std.int(UIBase.defaultWindowW * Config.raw.window_scale);
 				}
 			}
 		}

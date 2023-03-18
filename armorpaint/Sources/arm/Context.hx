@@ -15,7 +15,7 @@ import arm.util.RenderUtil;
 import arm.util.ParticleUtil;
 import arm.render.RenderPathDeferred;
 import arm.render.RenderPathForward;
-import arm.ui.UISidebar;
+import arm.ui.UIBase;
 import arm.ui.UIToolbar;
 import arm.ui.UINodes;
 import arm.ui.UIView2D;
@@ -38,7 +38,7 @@ class Context {
 		if (mode == raw.viewportMode) return;
 
 		raw.viewportMode = mode;
-		var deferred = raw.renderMode != RenderForward && (raw.viewportMode == ViewLit || raw.viewportMode == ViewPathTrace);
+		var deferred = raw.renderMode != RenderForward && (raw.viewportMode == ViewLit || raw.viewportMode == ViewPathTrace) && raw.tool != ToolColorId;
 		if (deferred) {
 			RenderPath.active.commands = RenderPathDeferred.commands;
 		}
@@ -60,7 +60,7 @@ class Context {
 		if (Project.materials.indexOf(m) == -1) return;
 		raw.material = m;
 		MakeMaterial.parsePaintMaterial();
-		UISidebar.inst.hwnd1.redraws = 2;
+		UIBase.inst.hwnd1.redraws = 2;
 		UIHeader.inst.headerHandle.redraws = 2;
 		UINodes.inst.hwnd.redraws = 2;
 		UINodes.inst.groupStack = [];
@@ -83,7 +83,7 @@ class Context {
 		if (Project.brushes.indexOf(b) == -1) return;
 		raw.brush = b;
 		MakeMaterial.parseBrush();
-		UISidebar.inst.hwnd1.redraws = 2;
+		UIBase.inst.hwnd1.redraws = 2;
 		UINodes.inst.hwnd.redraws = 2;
 	}
 
@@ -106,7 +106,7 @@ class Context {
 		App.notifyOnNextFrame(function() {
 			MakeMaterial.parsePaintMaterial();
 			RenderUtil.makeMaterialPreview();
-			UISidebar.inst.hwnd1.redraws = 2;
+			UIBase.inst.hwnd1.redraws = 2;
 		});
 	}
 
@@ -129,7 +129,7 @@ class Context {
 
 		if (current != null) current.begin(false);
 
-		UISidebar.inst.hwnd0.redraws = 2;
+		UIBase.inst.hwnd0.redraws = 2;
 		UIView2D.inst.hwnd.redraws = 2;
 	}
 
@@ -141,6 +141,9 @@ class Context {
 		UIToolbar.inst.toolbarHandle.redraws = 2;
 		raw.ddirty = 3;
 		initTool();
+		var _viewportMode = raw.viewportMode;
+		raw.viewportMode = -1;
+		setViewportMode(_viewportMode);
 	}
 
 	public static function initTool() {
@@ -253,14 +256,14 @@ class Context {
 
 	public static function inLayers(): Bool {
 		var mouse = Input.getMouse();
-		return UISidebar.inst.htab0.position == 0 &&
-			   mouse.x > UISidebar.inst.tabx && mouse.y < Config.raw.layout[LayoutSidebarH0];
+		return UIBase.inst.htab0.position == 0 &&
+			   mouse.x > UIBase.inst.tabx && mouse.y < Config.raw.layout[LayoutSidebarH0];
 	}
 
 	public static function inMaterials(): Bool {
 		var mouse = Input.getMouse();
-		return UISidebar.inst.htab1.position == 0 &&
-			   mouse.x > UISidebar.inst.tabx &&
+		return UIBase.inst.htab1.position == 0 &&
+			   mouse.x > UIBase.inst.tabx &&
 			   mouse.y > Config.raw.layout[LayoutSidebarH0] &&
 			   mouse.y < Config.raw.layout[LayoutSidebarH1] + Config.raw.layout[LayoutSidebarH0];
 	}
@@ -292,5 +295,15 @@ class Context {
 		return mouse.x > iron.App.x() &&
 			   mouse.x < iron.App.x() + (System.windowWidth() - UIToolbar.inst.toolbarw - Config.raw.layout[LayoutSidebarW]) &&
 			   mouse.y > System.windowHeight() - Config.raw.layout[LayoutStatusH];
+	}
+
+	public static function getAreaType(): AreaType {
+		if (inViewport()) return AreaViewport;
+		if (in2dView()) return Area2DView;
+		if (inLayers()) return AreaLayers;
+		if (inMaterials()) return AreaMaterials;
+		if (inNodes()) return AreaNodes;
+		if (inBrowser()) return AreaBrowser;
+		return -1;
 	}
 }

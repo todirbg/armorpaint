@@ -40,7 +40,7 @@ class BoxPreferences {
 					var localeCode = locales[localeHandle.position];
 					Config.raw.locale = localeCode;
 					Translator.loadTranslations(localeCode);
-					UISidebar.inst.tagUIRedraw();
+					UIBase.inst.tagUIRedraw();
 				}
 
 				var hscale = Id.handle({ value: Config.raw.window_scale });
@@ -81,7 +81,7 @@ class BoxPreferences {
 				ui.changed = false;
 				Config.raw.show_asset_names = ui.check(Id.handle({ selected: Config.raw.show_asset_names }), tr("Show Asset Names"));
 				if (ui.changed) {
-					UISidebar.inst.tagUIRedraw();
+					UIBase.inst.tagUIRedraw();
 				}
 
 				#if !(kha_android || kha_ios)
@@ -90,7 +90,7 @@ class BoxPreferences {
 				if (ui.changed) {
 					Zui.touchScroll = Zui.touchHold = Zui.touchTooltip = Config.raw.touch_ui;
 					Config.loadTheme(Config.raw.theme);
-					UISidebar.inst.tagUIRedraw();
+					UIBase.inst.tagUIRedraw();
 				}
 				#end
 
@@ -456,7 +456,7 @@ class BoxPreferences {
 				}
 
 				ui.beginSticky();
-				ui.row([1 / 2, 1 / 4, 1 / 4]);
+				ui.row([1 / 4, 1 / 4, 1 / 4, 1 / 4]);
 
 				presetHandle = Id.handle({ position: getPresetIndex() });
 				ui.combo(presetHandle, filesKeymap, tr("Preset"));
@@ -464,6 +464,27 @@ class BoxPreferences {
 					Config.raw.keymap = filesKeymap[presetHandle.position] + ".json";
 					Config.applyConfig();
 					Config.loadKeymap();
+				}
+
+				if (ui.button(tr("New"))) {
+					UIBox.showCustom(function(ui: Zui) {
+						if (ui.tab(Id.handle(), tr("New Keymap"))) {
+							ui.row([0.5, 0.5]);
+							var keymapName = ui.textInput(Id.handle({ text: "new_keymap" }), tr("Name"));
+							if (ui.button(tr("OK")) || ui.isReturnDown) {
+								var template = Json.stringify(arm.App.defaultKeymap);
+								if (!keymapName.endsWith(".json")) keymapName += ".json";
+								var path = Path.data() + Path.sep + "keymap_presets" + Path.sep + keymapName;
+								Krom.fileSaveBytes(path, Bytes.ofString(template).getData());
+								fetchKeymaps(); // Refresh file list
+								Config.raw.keymap = keymapName;
+								presetHandle.position = getPresetIndex();
+								UIBox.hide();
+								BoxPreferences.htab.position = 5; // Keymap
+								BoxPreferences.show();
+							}
+						}
+					});
 				}
 
 				if (ui.button(tr("Import"))) {
@@ -599,6 +620,7 @@ plugin.drawUI = function(ui) {
 		for (i in 0...filesKeymap.length) {
 			filesKeymap[i] = filesKeymap[i].substr(0, filesKeymap[i].length - 5); // Strip .json
 		}
+		filesKeymap.unshift("default");
 	}
 
 	public static function fetchPlugins() {
@@ -615,13 +637,13 @@ plugin.drawUI = function(ui) {
 
 	static function setScale() {
 		var scale = Config.raw.window_scale;
-		UISidebar.inst.ui.setScale(scale);
-		Config.raw.layout[LayoutSidebarW] = Std.int(UISidebar.defaultWindowW * scale);
+		UIBase.inst.ui.setScale(scale);
+		Config.raw.layout[LayoutSidebarW] = Std.int(UIBase.defaultWindowW * scale);
 		UIToolbar.inst.toolbarw = Std.int(UIToolbar.defaultToolbarW * scale);
 		UIHeader.inst.headerh = Std.int(UIHeader.defaultHeaderH * scale);
 		Config.raw.layout[LayoutStatusH] = Std.int(UIStatus.defaultStatusH * scale);
 		UIMenubar.inst.menubarw = Std.int(UIMenubar.defaultMenubarW * scale);
-		UISidebar.inst.setIconScale();
+		UIBase.inst.setIconScale();
 		UINodes.inst.ui.setScale(scale);
 		UIView2D.inst.ui.setScale(scale);
 		App.uiBox.setScale(scale);
