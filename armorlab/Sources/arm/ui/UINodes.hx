@@ -676,11 +676,15 @@ class UINodes {
 			ui._w = ew;
 
 			if (ui.button(tr("Run"))) {
-				Console.toast(tr("Processing"));
-				iron.App.notifyOnInit(function() {
-					#if arm_debug
+				Console.progress(tr("Processing"));
+
+				function delayIdleSleep(_) {
+					Krom.delayIdleSleep();
+				}
+				iron.App.notifyOnRender2D(delayIdleSleep);
+
+				App.notifyOnNextFrame(function() {
 					var timer = iron.system.Time.realTime();
-					#end
 
 					arm.logic.LogicParser.parse(Project.canvas, false);
 
@@ -736,7 +740,7 @@ class UINodes {
 							texpaint_pack.g4.drawIndexedVertices();
 							texpaint_pack.g4.end();
 
-							// arm.util.MeshUtil.applyDisplacement();
+							// arm.util.MeshUtil.applyDisplacement(texpaint_pack, 0.08, Context.raw.brushScale);
 							// arm.util.MeshUtil.calcNormals();
 						}
 
@@ -746,9 +750,10 @@ class UINodes {
 						arm.render.RenderPathRaytrace.ready = false;
 						#end
 
-						#if arm_debug
-						trace("Model run in " + (iron.system.Time.realTime() - timer));
-						#end
+						Console.log("Processing finished in " + (iron.system.Time.realTime() - timer));
+						Console.progress(null);
+
+						iron.App.removeRender2D(delayIdleSleep);
 					});
 					});
 					});
