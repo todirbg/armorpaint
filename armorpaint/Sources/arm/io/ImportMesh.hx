@@ -18,7 +18,7 @@ class ImportMesh {
 
 	public static function run(path: String, _clearLayers = true, replaceExisting = true, isObj8 = false) {
 		if (!Path.isMesh(path)) {
-			if (!Context.enableImportPlugin(path)) {
+			if (!ContextBase.enableImportPlugin(path)) {
 				Console.error(Strings.error1());
 				return;
 			}
