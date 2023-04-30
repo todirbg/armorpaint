@@ -502,7 +502,8 @@ class Project {
 						else ImportMesh.run(path, clearLayers, replaceExisting);
 						#end
 						#if is_lab
-						ImportMesh.run(path, replaceExisting);
+						if(isObj8 == true)	ImportMesh.run(path, replaceExisting, isObj8);
+						else ImportMesh.run(path, replaceExisting);
 						#end
 					}
 					#if (krom_android || krom_ios)

@@ -25,7 +25,7 @@ class ImportMesh {
 	#end
 
 	#if is_lab
-	public static function run(path: String, replaceExisting = true) {
+	public static function run(path: String, replaceExisting = true, isObj8 = false) {
 	#end
 
 		if (!Path.isMesh(path)) {
