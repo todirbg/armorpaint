@@ -427,13 +427,13 @@ class Project {
 	}
 	#end
 
-	public static function importMesh(replaceExisting = true) {
+	public static function importMesh(replaceExisting = true, done: Void->Void = null) {
 		UIFiles.show(Path.meshFormats.join(","), false, false, function(path: String) {
-			importMeshBox(path, replaceExisting);
+			importMeshBox(path, replaceExisting, true, done);
 		});
 	}
 
-	public static function importMeshBox(path: String, replaceExisting = true, clearLayers = true) {
+	public static function importMeshBox(path: String, replaceExisting = true, clearLayers = true, done: Void->Void = null) {
 
 		#if krom_ios
 		// Import immediately while access to resource is unlocked
@@ -505,6 +505,7 @@ class Project {
 						if(isObj8 == true)	ImportMesh.run(path, replaceExisting, isObj8);
 						else ImportMesh.run(path, replaceExisting);
 						#end
+						if (done != null) done();
 					}
 					#if (krom_android || krom_ios)
 					arm.App.notifyOnNextFrame(function() {
