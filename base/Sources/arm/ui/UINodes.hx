@@ -271,7 +271,7 @@ class UINodes {
 									selected.type == "GROUP_OUTPUT" ||
 									selected.type == "BrushOutputNode";
 					uiMenu.enabled = !protected;
-					if (menuButton(uiMenu, tr("Cut"), "ctrl+x")) {
+					if (UIMenu.menuButton(uiMenu, tr("Cut"), "ctrl+x")) {
 						App.notifyOnNextFrame(function() {
 							hwnd.redraws = 2;
 							Zui.isCopy = true;
@@ -279,14 +279,14 @@ class UINodes {
 							isNodeMenuOperation = true;
 						});
 					}
-					if (menuButton(uiMenu, tr("Copy"), "ctrl+c")) {
+					if (UIMenu.menuButton(uiMenu, tr("Copy"), "ctrl+c")) {
 						App.notifyOnNextFrame(function() {
 							Zui.isCopy = true;
 							isNodeMenuOperation = true;
 						});
 					}
 					uiMenu.enabled = Nodes.clipboard != "";
-					if (menuButton(uiMenu, tr("Paste"), "ctrl+v")) {
+					if (UIMenu.menuButton(uiMenu, tr("Paste"), "ctrl+v")) {
 						App.notifyOnNextFrame(function() {
 							hwnd.redraws = 2;
 							Zui.isPaste = true;
@@ -294,14 +294,14 @@ class UINodes {
 						});
 					}
 					uiMenu.enabled = !protected;
-					if (menuButton(uiMenu, tr("Delete"), "delete")) {
+					if (UIMenu.menuButton(uiMenu, tr("Delete"), "delete")) {
 						App.notifyOnNextFrame(function() {
 							hwnd.redraws = 2;
 							ui.isDeleteDown = true;
 							isNodeMenuOperation = true;
 						});
 					}
-					if (menuButton(uiMenu, tr("Duplicate"))) {
+					if (UIMenu.menuButton(uiMenu, tr("Duplicate"))) {
 						App.notifyOnNextFrame(function() {
 							hwnd.redraws = 2;
 							Zui.isCopy = true;
@@ -310,7 +310,7 @@ class UINodes {
 						});
 					}
 					if (selected != null && selected.type == "RGB") {
-						if (menuButton(uiMenu, tr("Add Swatch"))) {
+						if (UIMenu.menuButton(uiMenu, tr("Add Swatch"))) {
 							var color = selected.outputs[0].default_value;
 							var newSwatch = Project.makeSwatch(Color.fromFloats(color[0], color[1], color[2], color[3]));
 							Context.setSwatch(newSwatch);
@@ -321,8 +321,8 @@ class UINodes {
 
 					#if (is_paint || is_sculpt)
 					if (canvasType == CanvasMaterial) {
-						menuSeparator(uiMenu);
-						if (menuButton(uiMenu, tr("2D View"))) {
+						UIMenu.menuSeparator(uiMenu);
+						if (UIMenu.menuButton(uiMenu, tr("2D View"))) {
 							UIBase.inst.show2DView(View2DNode);
 						}
 					}
@@ -899,10 +899,10 @@ class UINodes {
 					img = Context.raw.nodePreview;
 				}
 				if (img != null) {
-					var tw = 80 * ui.SCALE();
+					var tw = 128 * ui.SCALE();
 					var th = tw * (img.height / img.width);
 					var tx = ww - tw - 8 * ui.SCALE();
-					var ty = wh - th - 40 * ui.SCALE();
+					var ty = wh - th - 8 * ui.SCALE();
 
 					#if kha_opengl
 					var invertY = sel.type == "MATERIAL";
@@ -928,22 +928,23 @@ class UINodes {
 					}
 				}
 			}
+			#end
+
+			// Menu
+			ui.g.color = ui.t.SEPARATOR_COL;
+			ui.g.fillRect(0, 0, ww, ui.ELEMENT_H() + ui.ELEMENT_OFFSET());
+			ui.g.color = 0xffffffff;
+
+			ui._x = 0;
+			ui._y = 0;
+			ui._w = ew;
 
 			// Editable canvas name
-			var _ACCENT_COL = ui.t.ACCENT_COL;
-			var _BUTTON_H = ui.t.BUTTON_H;
-			var _ELEMENT_H = ui.t.ELEMENT_H;
-			var _FONT_SIZE = ui.fontSize;
-			ui.t.ACCENT_COL = 0x00000000;
-			ui.t.BUTTON_H = 30;
-			ui.t.ELEMENT_H = 30;
-			ui.fontSize = Std.int(22 * ui.SCALE());
-			ui._x = ww - ui.ELEMENT_W() * 1.4;
-			ui._y = wh - ui.ELEMENT_H() * 1.2;
-			ui._w = Std.int(ui.ELEMENT_W() * 1.4);
 			var h = Id.handle();
 			h.text = c.name;
 			var newName = ui.textInput(h, "", Right);
+			ui._x += ew + 3;
+			ui._y = 0;
 
 			if (h.changed) { // Check whether renaming is possible and update group links
 				if (groupStack.length > 0) {
@@ -971,28 +972,6 @@ class UINodes {
 					c.name = newName;
 				}
 			}
-			ui.t.ACCENT_COL = _ACCENT_COL;
-			ui.t.BUTTON_H = _BUTTON_H;
-			ui.t.ELEMENT_H = _ELEMENT_H;
-			ui.fontSize = _FONT_SIZE;
-			#end
-
-			// Close node group
-			if (groupStack.length > 0) {
-				ui._x = 5;
-				ui._y = wh - ui.ELEMENT_H() * 1.2;
-				ui._w = Std.int(ui.ELEMENT_W() * 1.4);
-				if (ui.button(tr("Close"))) groupStack.pop();
-			}
-
-			// Menu
-			ui.g.color = ui.t.SEPARATOR_COL;
-			ui.g.fillRect(0, 0, ww, ui.ELEMENT_H() + ui.ELEMENT_OFFSET());
-			ui.g.color = 0xffffffff;
-
-			ui._x = 0;
-			ui._y = 0;
-			ui._w = ew;
 
 			#if is_lab
 			if (ui.button(tr("Run"))) {
@@ -1127,8 +1106,15 @@ class UINodes {
 
 			if (ui.button(tr("Search"), Left)) nodeSearch(Std.int(ui._windowX + ui._x), Std.int(ui._windowY + ui._y));
 			if (ui.isHovered) ui.tooltip(tr("Search for nodes") + ' (${Config.keymap.node_search})');
+			ui._x += ew + 3;
+			ui._y = 0;
 
 			ui.t.BUTTON_COL = _BUTTON_COL;
+
+			// Close node group
+			if (groupStack.length > 0 && ui.button(tr("Close"))) {
+				groupStack.pop();
+			}
 		}
 
 		ui.end(!showMenu);
@@ -1190,7 +1176,7 @@ class UINodes {
 					ui.fill(1, 1, ui._w / ui.SCALE() - 2, ui.t.BUTTON_H + 1, ui.t.SEPARATOR_COL);
 					ui.enabled = canPlaceGroup(g.canvas.name);
 					ui.row([5 / 6, 1 / 6]);
-					if (ui.button("      " + g.canvas.name, Left)) {
+					if (ui.button(Config.buttonSpacing + g.canvas.name, Left)) {
 						pushUndo();
 						var canvas = getCanvas(true);
 						var nodes = getNodes();
@@ -1411,22 +1397,5 @@ class UINodes {
 	static function getGroup(canvases: Array<TNodeCanvas>, name: String): TNodeCanvas {
 		for (c in canvases) if (c.name == name) return c;
 		return null;
-	}
-
-	static function menuButton(ui: Zui, text: String, label = ""): Bool {
-		if (Config.raw.touch_ui) {
-			label = "";
-		}
-		return ui.button(Config.buttonSpacing + text, Config.buttonAlign, label);
-	}
-
-	static function menuSeparator(ui: Zui) {
-		ui._y++;
-		if (Config.raw.touch_ui) {
-			ui.fill(0, 0, ui._w / ui.SCALE(), 1, ui.t.ACCENT_SELECT_COL);
-		}
-		else {
-			ui.fill(22, 0, ui._w / ui.SCALE() - 22, 1, ui.t.ACCENT_SELECT_COL);
-		}
 	}
 }
