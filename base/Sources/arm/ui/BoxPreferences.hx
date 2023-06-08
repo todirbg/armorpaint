@@ -89,6 +89,7 @@ class BoxPreferences {
 				if (ui.changed) {
 					Zui.touchScroll = Zui.touchHold = Zui.touchTooltip = Config.raw.touch_ui;
 					Config.loadTheme(Config.raw.theme);
+					setScale();
 					UIBase.inst.tagUIRedraw();
 				}
 				#end
@@ -100,7 +101,7 @@ class BoxPreferences {
 
 				ui.endElement();
 				ui.row([0.5, 0.5]);
-				if (ui.button(tr("Restore"))) {
+				if (ui.button(tr("Restore")) && !UIMenu.show) {
 					UIMenu.draw(function(ui: Zui) {
 						if (UIMenu.menuButton(ui, tr("Confirm"))) {
 							iron.App.notifyOnInit(function() {
@@ -130,7 +131,7 @@ class BoxPreferences {
 						}
 					}, 2);
 				}
-				if (ui.button(tr("Reset Layout"))) {
+				if (ui.button(tr("Reset Layout")) && !UIMenu.show) {
 					UIMenu.draw(function(ui: Zui) {
 						if (UIMenu.menuButton(ui, tr("Confirm"))) {
 							App.initLayout();
@@ -312,7 +313,7 @@ class BoxPreferences {
 				#end
 
 				var workspaceHandle = Id.handle({ position: Config.raw.workspace });
-				ui.combo(workspaceHandle, [tr("Paint"), tr("Material"), tr("Bake")], tr("Default Workspace"), true);
+				ui.combo(workspaceHandle, [tr("3D View")], tr("Default Workspace"), true);
 				if (workspaceHandle.changed) {
 					Config.raw.workspace = workspaceHandle.position;
 				}
@@ -642,7 +643,7 @@ plugin.drawUI = function(ui) {
 					}
 				}
 			}
-		}, 600, 400, function() { Config.save(); });
+		}, 620, 450, function() { Config.save(); });
 	}
 
 	public static function fetchThemes() {
@@ -674,7 +675,7 @@ plugin.drawUI = function(ui) {
 	static function setScale() {
 		var scale = Config.raw.window_scale;
 		UIBase.inst.ui.setScale(scale);
-		UIHeader.inst.headerh = Std.int(UIHeader.defaultHeaderH * scale);
+		UIHeader.headerh = Std.int(UIHeader.defaultHeaderH * scale);
 		Config.raw.layout[LayoutStatusH] = Std.int(UIStatus.defaultStatusH * scale);
 		UIMenubar.inst.menubarw = Std.int(UIMenubar.defaultMenubarW * scale);
 		UIBase.inst.setIconScale();

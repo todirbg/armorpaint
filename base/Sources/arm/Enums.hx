@@ -235,19 +235,8 @@ package arm;
 }
 
 @:enum abstract SpaceType(Int) from Int to Int {
-	#if is_paint
-	var SpacePaint = 0;
-	var SpaceMaterial = 1;
-	var SpaceBake = 2;
-	#end
-	#if is_forge
-	var SpaceScene = 3;
-	#end
-	#if is_sculpt
-	var SpaceSculpt = 0;
-	#end
-	#if is_lab
 	var Space3D = 0;
+	#if is_lab
 	var Space2D = 1;
 	#end
 }
@@ -267,6 +256,7 @@ package arm;
 	var ToolPicker = 10;
 	var ToolBake = 11;
 	var ToolGizmo = 12;
+	var ToolMaterial = 13;
 	#end
 	#if is_sculpt
 	var ToolBrush = 0;
@@ -350,9 +340,11 @@ package arm;
 	var LayoutNodesW = 3;
 	var LayoutNodesH = 4;
 	var LayoutStatusH = 5;
+	var LayoutHeader = 6; // 0 - hidden, 1 - visible
 	#end
 	#if is_lab
 	var LayoutNodesW = 0;
 	var LayoutStatusH = 1;
+	var LayoutHeader = 2;
 	#end
 }

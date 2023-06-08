@@ -237,7 +237,8 @@ class App {
 					appx = 0;
 					#end
 
-					appy = UIHeader.inst.headerh * 2;
+					appy = UIHeader.headerh;
+					if (Config.raw.layout[LayoutHeader] == 1) appy += UIHeader.headerh;
 					var cam = Scene.active.camera;
 					cam.data.raw.fov = Std.int(cam.data.raw.fov * 100) / 100;
 					cam.buildProjection();
@@ -312,12 +313,26 @@ class App {
 		}
 
 		var res = System.windowHeight();
+
 		if (UIBase.inst == null) {
 			res -= UIHeader.defaultHeaderH * 2 + UIStatus.defaultStatusH;
+
+			#if (krom_android || krom_ios)
+			var layoutHeader = 0;
+			#else
+			var layoutHeader = 1;
+			#end
+			if (layoutHeader == 0) {
+				res += UIHeader.headerh;
+			}
 		}
 		else if (UIBase.inst != null && UIBase.inst.show && res > 0) {
 			var statush = Config.raw.layout[LayoutStatusH];
 			res -= Std.int(UIHeader.defaultHeaderH * 2 * Config.raw.window_scale) + statush;
+
+			if (Config.raw.layout[LayoutHeader] == 0) {
+				res += UIHeader.headerh;
+			}
 		}
 
 		return res > 0 ? res : 1; // App was minimized, force render path resize
@@ -421,7 +436,10 @@ class App {
 			#if is_lab
 			appx = 0;
 			#end
-			appy = UIHeader.inst.headerh * 2;
+			appy = UIHeader.headerh * 2;
+			if (Config.raw.layout[LayoutHeader] == 0) {
+				appy -= UIHeader.headerh;
+			}
 		}
 		else {
 			appx = 0;
@@ -730,23 +748,7 @@ class App {
 			if (Config.raw.workspace != 0) {
 				UIHeader.inst.worktab.position = Config.raw.workspace;
 				UIMenubar.inst.workspaceHandle.redraws = 2;
-
-				#if is_paint
-				if (UIHeader.inst.worktab.position == SpaceBake) {
-					Context.selectTool(ToolBake);
-				}
-				else {
-					Context.selectTool(ToolGizmo);
-				}
-				if (UIHeader.inst.worktab.position == SpaceMaterial) {
-					App.updateFillLayers();
-					UINodes.inst.show = true;
-				}
-				#end
-
-				#if is_lab
 				UIHeader.inst.worktab.changed = true;
-				#end
 			}
 		}
 		else if (Context.raw.frame == 3) {
@@ -791,7 +793,7 @@ class App {
 			g.color = 0xffffffff;
 		}
 
-		var usingMenu = UIMenu.show && mouse.y > UIHeader.inst.headerh;
+		var usingMenu = UIMenu.show && mouse.y > UIHeader.headerh;
 		uiEnabled = !UIBox.show && !usingMenu && !isComboSelected();
 		if (UIBox.show) UIBox.render(g);
 		if (UIMenu.show) UIMenu.render(g);
@@ -892,7 +894,7 @@ class App {
 
 	public static function isDecalLayer(): Bool {
 		#if is_paint
-		var isPaint = UIHeader.inst.worktab.position == SpacePaint;
+		var isPaint = Context.raw.tool != ToolMaterial && Context.raw.tool != ToolBake;
 		return isPaint && Context.raw.layer.fill_layer != null && Context.raw.layer.uvType == UVProject;
 		#end
 
@@ -933,14 +935,20 @@ class App {
 			#if krom_ios
 			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.6) : Std.int(iron.App.w() * 0.6),
 			#else
-			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) / 2) : Std.int(iron.App.w() / 2),
+			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.515) : Std.int(iron.App.w() * 0.515), // Align with ui header controls
 			#end
 
 			#if (is_paint || is_sculpt)
 			Std.int(iron.App.h() / 2),
 			#end
 
-			Std.int(UIStatus.defaultStatusH * raw.window_scale)
+			Std.int(UIStatus.defaultStatusH * raw.window_scale),
+
+			#if (krom_android || krom_ios)
+			0, // LayoutHeader
+			#else
+			1,
+			#end
 		];
 
 		raw.layout_tabs = [
@@ -974,10 +982,10 @@ class App {
 		raw.displace_strength = 0.0;
 		raw.wrap_mouse = false;
 		#if is_paint
-		raw.workspace = SpacePaint;
+		raw.workspace = Space3D;
 		#end
 		#if is_sculpt
-		raw.workspace = SpaceSculpt;
+		raw.workspace = Space3D;
 		#end
 		#if is_lab
 		raw.workspace = Space2D;
@@ -1837,7 +1845,7 @@ class App {
 
 	public static function isFillMaterial(): Bool {
 		#if is_paint
-		if (UIHeader.inst.worktab.position == SpaceMaterial) return true;
+		if (Context.raw.tool == ToolMaterial) return true;
 		#end
 
 		var m = Context.raw.material;
@@ -1852,7 +1860,7 @@ class App {
 		var current: kha.graphics2.Graphics = null;
 
 		#if is_paint
-		if (UIHeader.inst.worktab.position == SpaceMaterial) {
+		if (Context.raw.tool == ToolMaterial) {
 			if (RenderPathPaint.liveLayer == null) {
 				RenderPathPaint.liveLayer = new arm.data.LayerSlot("_live");
 			}
@@ -1860,7 +1868,6 @@ class App {
 			current = @:privateAccess kha.graphics2.Graphics.current;
 			if (current != null) current.end();
 
-			UIHeader.inst.worktab.position = SpacePaint;
 			Context.raw.tool = ToolFill;
 			Context.raw.fillTypeHandle.position = FillObject;
 			MakeMaterial.parsePaintMaterial(false);
@@ -1873,7 +1880,6 @@ class App {
 			Context.raw.fillTypeHandle.position = _fillType;
 			Context.raw.pdirty = 0;
 			Context.raw.rdirty = 2;
-			UIHeader.inst.worktab.position = SpaceMaterial;
 
 			if (current != null) current.begin(false);
 			return;
@@ -1947,14 +1953,6 @@ class App {
 		Context.raw.tool = ToolFill;
 		Context.raw.fillTypeHandle.position = FillObject;
 		Context.raw.pdirty = 1;
-		var _workspace = UIHeader.inst.worktab.position;
-
-		#if is_paint
-		UIHeader.inst.worktab.position = SpacePaint;
-		#end
-		#if is_sculpt
-		UIHeader.inst.worktab.position = SpaceSculpt;
-		#end
 
 		Context.raw.layer.clear();
 
@@ -1965,7 +1963,6 @@ class App {
 		Context.raw.rdirty = 2;
 		Context.raw.tool = _tool;
 		Context.raw.fillTypeHandle.position = _fillType;
-		UIHeader.inst.worktab.position = _workspace;
 		if (current != null) current.begin(false);
 	}
 
@@ -2232,6 +2229,9 @@ class App {
 		tool_particle: "p",
 		tool_colorid: "c",
 		tool_picker: "v",
+		tool_bake: "k",
+		tool_gizmo: "",
+		tool_material: "",
 		swap_brush_eraser: "",
 		toggle_2d_view: "shift+tab",
 		#end
