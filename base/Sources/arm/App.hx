@@ -610,10 +610,9 @@ class App {
 
 		handleDropPaths();
 
-		var isPicker = Context.raw.tool == ToolPicker;
-
 		#if (is_paint || is_sculpt)
 		#if krom_windows
+		var isPicker = Context.raw.tool == ToolPicker || Context.raw.tool == ToolMaterial;
 		var decal = Context.raw.tool == ToolDecal || Context.raw.tool == ToolText;
 		Zui.alwaysRedrawWindow = !Context.raw.cacheDraws ||
 			UIMenu.show ||
@@ -933,7 +932,7 @@ class App {
 			#end
 
 			#if krom_ios
-			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.6) : Std.int(iron.App.w() * 0.6),
+			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.498) : Std.int(iron.App.w() * 0.498),
 			#else
 			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.515) : Std.int(iron.App.w() * 0.515), // Align with ui header controls
 			#end
@@ -1003,7 +1002,7 @@ class App {
 		raw.pressure_hardness = true;
 		raw.pressure_angle = false;
 		raw.pressure_opacity = false;
-		#if kha_vulkan
+		#if (kha_vulkan || krom_ios)
 		raw.material_live = false;
 		#else
 		raw.material_live = true;
