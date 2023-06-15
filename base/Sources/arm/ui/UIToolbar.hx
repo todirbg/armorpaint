@@ -11,12 +11,7 @@ import arm.Translator._tr;
 class UIToolbar {
 
 	public static var inst: UIToolbar;
-
-	#if (krom_android || krom_ios)
-	public static inline var defaultToolbarW = 36 + 4;
-	#else
 	public static inline var defaultToolbarW = 36;
-	#end
 
 	public var toolbarHandle = new Handle();
 	public var toolbarw = defaultToolbarW;
@@ -46,6 +41,14 @@ class UIToolbar {
 	public function renderUI(g: kha.graphics2.Graphics) {
 		var ui = UIBase.inst.ui;
 
+		if (Config.raw.touch_ui) {
+			toolbarw = defaultToolbarW + 6;
+		}
+		else {
+			toolbarw = defaultToolbarW;
+		}
+		toolbarw = Std.int(toolbarw * ui.SCALE());
+
 		if (ui.window(toolbarHandle, 0, UIHeader.headerh, toolbarw, System.windowHeight() - UIHeader.headerh)) {
 			ui._y -= 4 * ui.SCALE();
 
@@ -69,18 +72,24 @@ class UIToolbar {
 			else {
 				var _ELEMENT_H = ui.t.ELEMENT_H;
 				var _BUTTON_H = ui.t.BUTTON_H;
+				var _BUTTON_COL = ui.t.BUTTON_COL;
 				var _fontOffsetY = ui.fontOffsetY;
 				ui.t.ELEMENT_H = Std.int(ui.t.ELEMENT_H * 1.5);
 				ui.t.BUTTON_H = ui.t.ELEMENT_H;
+				ui.t.BUTTON_COL = ui.t.WINDOW_BG_COL;
 				var fontHeight = ui.ops.font.height(ui.fontSize);
 				ui.fontOffsetY = (ui.ELEMENT_H() - fontHeight) / 2;
+				var _w = ui._w;
+				ui._w = toolbarw;
 
 				if (ui.button(">>")) {
 					toolPropertiesMenu();
 				}
 
+				ui._w = _w;
 				ui.t.ELEMENT_H = _ELEMENT_H;
 				ui.t.BUTTON_H = _BUTTON_H;
+				ui.t.BUTTON_COL = _BUTTON_COL;
 				ui.fontOffsetY = _fontOffsetY;
 			}
 			if (ui.isHovered) ui.tooltip(tr("Toggle header"));
@@ -159,8 +168,11 @@ class UIToolbar {
 
 	static function toolPropertiesMenu() {
 		var ui = UIBase.inst.ui;
+		var _x = ui._x;
+		var _y = ui._y;
+		var _w = ui._w;
 		UIMenu.draw(function(ui: Zui) {
-			var _y = ui._y;
+			var startY = ui._y;
 			ui.changed = false;
 
 			UIHeader.inst.drawToolProperties(ui);
@@ -173,15 +185,23 @@ class UIToolbar {
 				Config.raw.layout[LayoutHeader] = 1;
 			}
 
-			var h = ui._y - _y;
+			var h = ui._y - startY;
 			UIMenu.menuElements = Std.int(h / ui.ELEMENT_H());
-		}, 0, Std.int(ui._x + ui._w + 2), Std.int(ui._y - 5));
+			UIMenu.menuX = Std.int(_x + _w + 2);
+			UIMenu.menuY = Std.int(_y - 6 * ui.SCALE());
+			UIMenu.fitToScreen();
+
+		}, 0);
+
+		// First draw out of screen, then align the menu based on menu height
+		UIMenu.menuX = -kha.System.windowWidth();
+		UIMenu.menuY = -kha.System.windowHeight();
 	}
 
 	@:access(zui.Zui)
 	static function drawHighlight() {
 		var ui = UIBase.inst.ui;
-		var size = (UIToolbar.defaultToolbarW - 4) * ui.SCALE();
+		var size = UIToolbar.inst.toolbarw - 4;
 		ui.g.color = ui.t.HIGHLIGHT_COL;
 		ui.drawRect(ui.g, true, ui._x + -1,  ui._y + 2, size + 2, size + 2);
 	}

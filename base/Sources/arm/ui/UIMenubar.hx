@@ -35,27 +35,19 @@ class UIMenubar {
 		var panelx = iron.App.x();
 		#end
 
-		if (ui.window(menuHandle, panelx, 0, menubarw, Std.int(UIHeader.defaultHeaderH * ui.SCALE()))) {
+		if (ui.window(menuHandle, panelx, 0, menubarw, UIHeader.headerh)) {
 			ui._x += 1; // Prevent "File" button highlight on startup
 
 			Ext.beginMenu(ui);
 
 			if (Config.raw.touch_ui) {
-				ui._y += 4;
 
 				#if (is_paint || is_sculpt)
-				var defaultToolbarW = UIToolbar.defaultToolbarW;
+				ui._w = UIToolbar.inst.toolbarw;
 				#end
-
 				#if is_lab
-				#if (krom_android || krom_ios)
-				var defaultToolbarW = 36 + 4;
-				#else
-				var defaultToolbarW = 36;
+				ui._w = 36;
 				#end
-				#end
-
-				ui._w = Std.int(defaultToolbarW * ui.SCALE());
 
 				if (iconButton(ui, 0, 2)) BoxPreferences.show();
 				if (iconButton(ui, 0, 3)) {
@@ -71,7 +63,7 @@ class UIMenubar {
 				#if (is_paint || is_lab)
 				if (iconButton(ui, 5, 2)) BoxExport.showTextures();
 				#end
-				var size = defaultToolbarW;
+				var size = Std.int(ui._w / ui.SCALE());
 				if (UIMenu.show && UIMenu.menuCategory == MenuViewport) ui.fill(0, -6, size, size - 4, ui.t.HIGHLIGHT_COL);
 				if (iconButton(ui, 8, 2)) showMenu(ui, MenuViewport);
 				if (UIMenu.show && UIMenu.menuCategory == MenuMode) ui.fill(0, -6, size, size - 4, ui.t.HIGHLIGHT_COL);
@@ -80,11 +72,11 @@ class UIMenubar {
 				if (iconButton(ui, 10, 2)) showMenu(ui, MenuCamera);
 				if (UIMenu.show && UIMenu.menuCategory == MenuHelp) ui.fill(0, -6, size, size - 4, ui.t.HIGHLIGHT_COL);
 				if (iconButton(ui, 11, 2)) showMenu(ui, MenuHelp);
-				// ui.enabled = History.undos > 0;
+				ui.enabled = History.undos > 0;
 				if (iconButton(ui, 6, 2)) History.undo();
-				// ui.enabled = History.redos > 0;
+				ui.enabled = History.redos > 0;
 				if (iconButton(ui, 7, 2)) History.redo();
-				// ui.enabled = true;
+				ui.enabled = true;
 			}
 			else {
 				var categories = [tr("File"), tr("Edit"), tr("Viewport"), tr("Mode"), tr("Camera"), tr("Help")];
@@ -116,7 +108,7 @@ class UIMenubar {
 		var panelx = (iron.App.x()) + menubarw;
 		#end
 
-		if (ui.window(workspaceHandle, panelx, 0, ww, Std.int(UIHeader.defaultHeaderH * ui.SCALE()))) {
+		if (ui.window(workspaceHandle, panelx, 0, ww, UIHeader.headerh)) {
 
 			if (!Config.raw.touch_ui) {
 				ui.tab(UIHeader.inst.worktab, tr("3D View"));
@@ -169,12 +161,13 @@ class UIMenubar {
 		if (Config.raw.touch_ui) {
 			var menuW = Std.int(App.defaultElementW * App.uiMenu.SCALE() * 2.0);
 			UIMenu.menuX -= Std.int((menuW - ui._w) / 2) + Std.int(UIHeader.headerh / 2);
-			// UIMenu.menuY += 4;
+			UIMenu.menuX += Std.int(2 * App.uiMenu.SCALE());
+			UIMenu.menuY -= Std.int(2 * App.uiMenu.SCALE());
 			UIMenu.keepOpen = true;
 		}
 	}
 
-	function iconButton(ui: Zui, i: Int, j: Int): Bool {
+	public static function iconButton(ui: Zui, i: Int, j: Int): Bool {
 		var col = ui.t.WINDOW_BG_COL;
 		if (col < 0) col += untyped 4294967296;
 		var light = col > 0xff666666 + 4294967296;
