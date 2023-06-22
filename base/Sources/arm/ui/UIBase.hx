@@ -42,6 +42,8 @@ class UIBase {
 	var borderHandle: Handle = null;
 	var action_paint_remap = "";
 	var operatorSearchOffset = 0;
+	var undoTapTime = 0.0;
+	var redoTapTime = 0.0;
 
 	#if (is_paint || is_sculpt)
 	public var hwnds = [Id.handle(), Id.handle(), Id.handle()];
@@ -819,36 +821,38 @@ class UIBase {
 
 		#if (is_paint || is_sculpt)
 		// Same mapping for paint and rotate (predefined in touch keymap)
-		if (mouse.started() && Config.keymap.action_paint == Config.keymap.action_rotate) {
-			action_paint_remap = Config.keymap.action_paint;
-			RenderUtil.pickPosNorTex();
-			#if kha_metal
-			RenderUtil.pickPosNorTex(); // Flush
-			#end
-			var isMesh = Math.abs(Context.raw.posXPicked) < 50 && Math.abs(Context.raw.posYPicked) < 50 && Math.abs(Context.raw.posZPicked) < 50;
-			#if kha_android
-			// Allow rotating with both pen and touch, because hovering a pen prevents touch input on android
-			var penOnly = false;
-			#else
-			var penOnly = Context.raw.penPaintingOnly;
-			#end
-			var isPen = penOnly && Input.getPen().down();
-			// Mesh picked - disable rotate
-			// Pen painting only - rotate with touch, paint with pen
-			if ((isMesh && !penOnly) || isPen) {
-				Config.keymap.action_rotate = "";
-				Config.keymap.action_paint = action_paint_remap;
+		if (Context.inViewport()) {
+			if (mouse.started() && Config.keymap.action_paint == Config.keymap.action_rotate) {
+				action_paint_remap = Config.keymap.action_paint;
+				RenderUtil.pickPosNorTex();
+				#if kha_metal
+				RenderUtil.pickPosNorTex(); // Flush
+				#end
+				var isMesh = Math.abs(Context.raw.posXPicked) < 50 && Math.abs(Context.raw.posYPicked) < 50 && Math.abs(Context.raw.posZPicked) < 50;
+				#if kha_android
+				// Allow rotating with both pen and touch, because hovering a pen prevents touch input on android
+				var penOnly = false;
+				#else
+				var penOnly = Context.raw.penPaintingOnly;
+				#end
+				var isPen = penOnly && Input.getPen().down();
+				// Mesh picked - disable rotate
+				// Pen painting only - rotate with touch, paint with pen
+				if ((isMesh && !penOnly) || isPen) {
+					Config.keymap.action_rotate = "";
+					Config.keymap.action_paint = action_paint_remap;
+				}
+				// World sphere picked - disable paint
+				else {
+					Config.keymap.action_paint = "";
+					Config.keymap.action_rotate = action_paint_remap;
+				}
 			}
-			// World sphere picked - disable paint
-			else {
-				Config.keymap.action_paint = "";
+			else if (!mouse.down() && action_paint_remap != "") {
 				Config.keymap.action_rotate = action_paint_remap;
+				Config.keymap.action_paint = action_paint_remap;
+				action_paint_remap = "";
 			}
-		}
-		else if (!mouse.down() && action_paint_remap != "") {
-			Config.keymap.action_rotate = action_paint_remap;
-			Config.keymap.action_paint = action_paint_remap;
-			action_paint_remap = "";
 		}
 
 		if (Context.raw.brushStencilImage != null && Operator.shortcut(Config.keymap.stencil_transform, ShortcutDown)) {
@@ -1085,6 +1089,14 @@ class UIBase {
 		var undoPressed = Operator.shortcut(Config.keymap.edit_undo);
 		var redoPressed = Operator.shortcut(Config.keymap.edit_redo) ||
 						  (kb.down("control") && kb.started("y"));
+
+		// Two-finger tap to undo, three-finger tap to redo
+		if (Config.raw.touch_ui) {
+			if (mouse.started("middle")) { redoTapTime = Time.time(); }
+			else if (mouse.started("right")) { undoTapTime = Time.time(); }
+			else if (mouse.released("middle") && Time.time() - redoTapTime < 0.2) { redoTapTime = undoTapTime = 0; redoPressed = true; }
+			else if (mouse.released("right") && Time.time() - undoTapTime < 0.2) { redoTapTime = undoTapTime = 0; undoPressed = true; }
+		}
 
 		if (undoPressed) History.undo();
 		else if (redoPressed) History.redo();
