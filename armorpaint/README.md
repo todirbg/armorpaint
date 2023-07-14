@@ -33,9 +33,13 @@ strip ArmorPaint
 
 **macOS**
 ```bash
+cd ../armorcore
+git apply patch/metal_raytrace.diff --directory=Kinc
+cd ../armorpaint
 ../armorcore/Kinc/make --from ../armorcore -g metal
 cp -a build/krom/ ../armorcore/Deployment
 # Open generated Xcode project at `build/ArmorPaint.xcodeproj`
+# Set macOS Deployment Target to 13.0
 # Build and run
 ```
 
@@ -55,12 +59,14 @@ cp -r build/krom/* build/ArmorPaint/app/src/main/assets/
 **iOS** *wip*
 ```bash
 cd ../armorcore
+git apply patch/metal_raytrace.diff --directory=Kinc
 git apply patch/ios_document_picker.diff --directory=Kinc
+git apply patch/ios_pencil_hover.diff --directory=Kinc
 cd ../armorpaint
 ../armorcore/Kinc/make --from ../armorcore -g metal ios
 cp -a build/krom/ ../armorcore/Deployment
 # Open generated Xcode project `build/ArmorPaint.xcodeproj`
-# Set iOS Deployment Target to 14.0
+# Set iOS Deployment Target to 16.0
 # Build for device in release mode
 ```
 

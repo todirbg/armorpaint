@@ -3,13 +3,14 @@ package arm.render;
 import iron.RenderPath;
 import iron.Scene;
 
-#if (kha_direct3d12 || kha_vulkan)
+#if (kha_direct3d12 || kha_vulkan || kha_metal)
 
 @:access(arm.render.RenderPathRaytrace)
 class RenderPathRaytraceBake {
 
 	public static var raysPix = 0;
 	public static var raysSec = 0;
+	public static var currentSample = 0;
 	static var raysTimer = 0.0;
 	static var raysCounter = 0;
 	static var lastLayer: kha.Image = null;
@@ -75,7 +76,10 @@ class RenderPathRaytraceBake {
 			return false;
 		}
 
-		if (!Context.raw.envmapLoaded) Context.loadEnvmap();
+		if (!Context.raw.envmapLoaded) {
+			Context.loadEnvmap();
+			Context.updateEnvmap();
+		}
 		var probe = Scene.active.world.probe;
 		var savedEnvmap = Context.raw.showEnvmapBlur ? probe.radianceMipmaps[0] : Context.raw.savedEnvmap;
 		if (RenderPathRaytrace.lastEnvmap != savedEnvmap || lastLayer != Context.raw.layer.texpaint) {
@@ -113,20 +117,29 @@ class RenderPathRaytraceBake {
 			path.bindTarget("baketex2", "tex");
 			path.drawShader("shader_datas/copy_pass/copy_pass");
 
-			raysPix = RenderPathRaytrace.frame * 64;
-			raysCounter += 64;
+			#if kha_metal
+			var samplesPerFrame = 4;
+			#else
+			var samplesPerFrame = 64;
+			#end
+
+			raysPix = RenderPathRaytrace.frame * samplesPerFrame;
+			raysCounter += samplesPerFrame;
 			raysTimer += iron.system.Time.realDelta;
 			if (raysTimer >= 1) {
 				raysSec = raysCounter;
 				raysTimer = 0;
 				raysCounter = 0;
 			}
+			currentSample++;
+			Krom.delayIdleSleep();
 			return true;
 		}
 		else {
 			RenderPathRaytrace.frame = 0;
 			raysTimer = 0;
 			raysCounter = 0;
+			currentSample = 0;
 			return false;
 		}
 	}
@@ -136,7 +149,7 @@ class RenderPathRaytraceBake {
 			Context.raw.bakeType == BakeAO  		? "raytrace_bake_ao" + RenderPathRaytrace.ext :
 			Context.raw.bakeType == BakeLightmap 	? "raytrace_bake_light" + RenderPathRaytrace.ext :
 			Context.raw.bakeType == BakeBentNormal  ? "raytrace_bake_bent" + RenderPathRaytrace.ext :
-												  "raytrace_bake_thick" + RenderPathRaytrace.ext;
+													  "raytrace_bake_thick" + RenderPathRaytrace.ext;
 	}
 }
 

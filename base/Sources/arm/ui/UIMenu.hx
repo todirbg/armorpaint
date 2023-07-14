@@ -214,7 +214,7 @@ class UIMenu {
 				Context.raw.brushScale = ui.slider(brushScaleHandle, tr("UV Scale"), 0.01, 5.0, true);
 				if (brushScaleHandle.changed) {
 					MakeMaterial.parseMeshMaterial();
-					#if (kha_direct3d12 || kha_vulkan)
+					#if (kha_direct3d12 || kha_vulkan || kha_metal)
 					arm.render.RenderPathRaytrace.uvScale = Context.raw.brushScale;
 					arm.render.RenderPathRaytrace.ready = false;
 					#end
@@ -268,12 +268,8 @@ class UIMenu {
 				menuFill(ui);
 				Context.raw.showEnvmapBlur = ui.check(Context.raw.showEnvmapBlurHandle, " " + tr("Blur Envmap"));
 				if (Context.raw.showEnvmapBlurHandle.changed) Context.raw.ddirty = 2;
-				if (Context.raw.showEnvmap) {
-					Scene.active.world.envmap = Context.raw.showEnvmapBlur ? Scene.active.world.probe.radianceMipmaps[0] : Context.raw.savedEnvmap;
-				}
-				else {
-					Scene.active.world.envmap = Context.raw.emptyEnvmap;
-				}
+
+				Context.updateEnvmap();
 
 				if (ui.changed) keepOpen = true;
 			}
@@ -301,9 +297,11 @@ class UIMenu {
 				];
 				var shortcuts = ["l", "b", "n", "o", "r", "m", "a", "h", "e", "s", "t", "1", "2", "3", "4"];
 
-				#if (kha_direct3d12 || kha_vulkan)
-				modes.push(tr("Path Traced"));
-				shortcuts.push("p");
+				#if (kha_direct3d12 || kha_vulkan || kha_metal)
+				if (Krom.raytraceSupported()) {
+					modes.push(tr("Path Traced"));
+					shortcuts.push("p");
+				}
 				#end
 
 				for (i in 0...modes.length) {
@@ -312,7 +310,14 @@ class UIMenu {
 					ui.radio(modeHandle, i, modes[i], shortcut);
 				}
 
-				if (modeHandle.changed) Context.setViewportMode(modeHandle.position);
+				if (modeHandle.changed) {
+					Context.setViewportMode(modeHandle.position);
+					// TODO: rotate mode is not supported for path tracing yet
+					if (modeHandle.position == ViewPathTrace && Context.raw.cameraControls == ControlsRotate) {
+						Context.raw.cameraControls = ControlsOrbit;
+						Viewport.reset();
+					}
+				}
 			}
 			else if (menuCategory == MenuCamera) {
 				if (menuButton(ui, tr("Reset"), Config.keymap.view_reset)) {
@@ -376,15 +381,20 @@ class UIMenu {
 
 				menuFill(ui);
 				menuAlign(ui);
-				Context.raw.cameraControls = Ext.inlineRadio(ui, Id.handle({ position: Context.raw.cameraControls }), [tr("Orbit"), tr("Rotate"), tr("Fly")], Left);
-				var orbitAndRotateTooltip = tr("Orbit and Rotate mode:\n{rotate_shortcut} or move right mouse button to rotate.\n{zoom_shortcut} or scroll to zoom.\n{pan_shortcut} or move middle mouse to pan.", 
-				["rotate_shortcut" => Config.keymap.action_rotate, 
-				"zoom_shortcut" => Config.keymap.action_zoom,  
-				"pan_shortcut" => Config.keymap.action_pan,
-				]);
+				var cameraControlsHandle = Id.handle();
+				cameraControlsHandle.position = Context.raw.cameraControls;
+				Context.raw.cameraControls = Ext.inlineRadio(ui, cameraControlsHandle, [tr("Orbit"), tr("Rotate"), tr("Fly")], Left);
 
+				var orbitAndRotateTooltip = tr("Orbit and Rotate mode:\n{rotate_shortcut} or move right mouse button to rotate.\n{zoom_shortcut} or scroll to zoom.\n{pan_shortcut} or move middle mouse to pan.",
+					[
+						"rotate_shortcut" => Config.keymap.action_rotate,
+						"zoom_shortcut" => Config.keymap.action_zoom,
+						"pan_shortcut" => Config.keymap.action_pan
+					]
+				);
 				var flyTooltip = tr("Fly mode:\nHold the right mouse button and one of the following commands:\nmove mouse to rotate.\nw, up or scroll up to move forward.\ns, down or scroll down to move backward.\na or left to move left.\nd or right to move right.\ne to move up.\nq to move down.\nHold shift to move faster or alt to move slower.");
 				if (ui.isHovered) ui.tooltip(orbitAndRotateTooltip + "\n\n" + flyTooltip);
+
 				menuFill(ui);
 				menuAlign(ui);
 				Context.raw.cameraType = Ext.inlineRadio(ui, Context.raw.camHandle, [tr("Perspective"), tr("Orthographic")], Left);
@@ -549,11 +559,21 @@ class UIMenu {
 		// Prevent the menu going out of screen
 		var menuW = App.defaultElementW * App.uiMenu.SCALE() * 2.3;
 		if (menuX + menuW > System.windowWidth()) {
-			menuX = Std.int(System.windowWidth() - menuW);
+			if (menuX - menuW > 0) {
+				menuX = Std.int(menuX - menuW);
+			}
+			else {
+				menuX = Std.int(System.windowWidth() - menuW);
+			}
 		}
 		var menuH = Std.int(menuElements * 30 * App.uiMenu.SCALE()); // ui.t.ELEMENT_H
 		if (menuY + menuH > System.windowHeight()) {
-			menuY = System.windowHeight() - menuH;
+			if (menuY - menuH > 0) {
+				menuY = Std.int(menuY - menuH);
+			}
+			else {
+				menuY = System.windowHeight() - menuH;
+			}
 			menuX += 1; // Move out of mouse focus
 		}
 	}

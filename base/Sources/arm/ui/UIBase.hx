@@ -63,9 +63,16 @@ class UIBase {
 	#end
 
 	#if (is_paint || is_sculpt)
-	public static inline var defaultWindowW = 280;
+	public static inline var defaultSidebarMiniW = 56;
+	public static inline var defaultSidebarFullW = 280;
+	#if (kha_android || kha_ios)
+	public static inline var defaultSidebarW = defaultSidebarMiniW;
+	#else
+	public static inline var defaultSidebarW = defaultSidebarFullW;
+	#end
 	public var tabx = 0;
 	public var hminimized = Id.handle();
+	public static var sidebarMiniW = defaultSidebarMiniW;
 	#end
 
 	public function new() {
@@ -522,9 +529,11 @@ class UIBase {
 
 						var shortcuts = ["l", "b", "n", "o", "r", "m", "a", "h", "e", "s", "t", "1", "2", "3", "4"];
 
-						#if (kha_direct3d12 || kha_vulkan)
-						modes.push(tr("Path Traced"));
-						shortcuts.push("p");
+						#if (kha_direct3d12 || kha_vulkan || kha_metal)
+						if (Krom.raytraceSupported()) {
+							modes.push(tr("Path Traced"));
+							shortcuts.push("p");
+						}
 						#end
 
 						for (i in 0...modes.length) {
@@ -543,10 +552,10 @@ class UIBase {
 						}
 
 					#if (is_paint || is_sculpt)
-					}, 16 #if (kha_direct3d12 || kha_vulkan) + 1 #end );
+					}, 16 #if (kha_direct3d12 || kha_vulkan || kha_metal) + 1 #end );
 					#end
 					#if is_lab
-					}, 9 #if (kha_direct3d12 || kha_vulkan) + 1 #end );
+					}, 9 #if (kha_direct3d12 || kha_vulkan || kha_metal) + 1 #end );
 					#end
 				}
 			}
@@ -610,8 +619,8 @@ class UIBase {
 			else {
 				if (borderStarted == SideLeft) {
 					Config.raw.layout[LayoutSidebarW] -= Std.int(mouse.movementX);
-					if (Config.raw.layout[LayoutSidebarW] < 32) Config.raw.layout[LayoutSidebarW] = 32;
-					else if (Config.raw.layout[LayoutSidebarW] > System.windowWidth() - 32) Config.raw.layout[LayoutSidebarW] = System.windowWidth() - 32;
+					if (Config.raw.layout[LayoutSidebarW] < sidebarMiniW) Config.raw.layout[LayoutSidebarW] = sidebarMiniW;
+					else if (Config.raw.layout[LayoutSidebarW] > System.windowWidth() - sidebarMiniW) Config.raw.layout[LayoutSidebarW] = System.windowWidth() - sidebarMiniW;
 				}
 				else {
 					var my = Std.int(mouse.movementY);
@@ -808,11 +817,12 @@ class UIBase {
 	#end
 
 	function updateUI() {
-
 		if (Console.messageTimer > 0) {
 			Console.messageTimer -= Time.delta;
 			if (Console.messageTimer <= 0) hwnds[TabStatus].redraws = 2;
 		}
+
+		sidebarMiniW = Std.int(defaultSidebarMiniW * ui.SCALE());
 
 		if (!App.uiEnabled) return;
 
@@ -1026,7 +1036,7 @@ class UIBase {
 			Context.raw.brushTime = 0;
 			Context.raw.prevPaintVecX = -1;
 			Context.raw.prevPaintVecY = -1;
-			#if (!kha_direct3d12 && !kha_vulkan) // Keep accumulated samples for D3D12
+			#if (!kha_direct3d12 && !kha_vulkan && !kha_metal) // Keep accumulated samples for D3D12
 			Context.raw.ddirty = 3;
 			#end
 			Context.raw.brushBlendDirty = true; // Update brush mask
@@ -1091,11 +1101,11 @@ class UIBase {
 						  (kb.down("control") && kb.started("y"));
 
 		// Two-finger tap to undo, three-finger tap to redo
-		if (Config.raw.touch_ui) {
+		if (Context.inViewport() && Config.raw.touch_ui) {
 			if (mouse.started("middle")) { redoTapTime = Time.time(); }
 			else if (mouse.started("right")) { undoTapTime = Time.time(); }
-			else if (mouse.released("middle") && Time.time() - redoTapTime < 0.2) { redoTapTime = undoTapTime = 0; redoPressed = true; }
-			else if (mouse.released("right") && Time.time() - undoTapTime < 0.2) { redoTapTime = undoTapTime = 0; undoPressed = true; }
+			else if (mouse.released("middle") && Time.time() - redoTapTime < 0.1) { redoTapTime = undoTapTime = 0; redoPressed = true; }
+			else if (mouse.released("right") && Time.time() - undoTapTime < 0.1) { redoTapTime = undoTapTime = 0; undoPressed = true; }
 		}
 
 		if (undoPressed) History.undo();
@@ -1107,12 +1117,11 @@ class UIBase {
 	}
 
 	public function render(g: kha.graphics2.Graphics) {
-		#if (krom_android || krom_ios)
-		if (!show) {
+		if (!show && Config.raw.touch_ui) {
 			ui.inputEnabled = true;
 			g.end();
 			ui.begin(g);
-			if (ui.window(Id.handle(), 0, 0, 150, Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET()))) {
+			if (ui.window(Id.handle(), 0, 0, 150, Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET() + 1))) {
 				if (ui.button(tr("Close"))) {
 					toggleDistractFree();
 				}
@@ -1120,7 +1129,6 @@ class UIBase {
 			ui.end();
 			g.begin(false);
 		}
-		#end
 
 		if (!show || System.windowWidth() == 0 || System.windowHeight() == 0) return;
 
@@ -1150,17 +1158,56 @@ class UIBase {
 		UIStatus.inst.renderUI(g);
 
 		#if (is_paint || is_sculpt)
+		drawSidebar();
+		#end
+
+		ui.end();
+		g.begin(false);
+	}
+
+	#if (is_paint || is_sculpt)
+	function drawSidebar() {
+		// Tabs
+		var mini = Config.raw.layout[LayoutSidebarW] <= sidebarMiniW;
+		var expandButtonOffset = Config.raw.touch_ui ? Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET()) : 0;
 		tabx = System.windowWidth() - Config.raw.layout[LayoutSidebarW];
+
+		var _SCROLL_W = ui.t.SCROLL_W;
+		if (mini) ui.t.SCROLL_W = ui.t.SCROLL_MINI_W;
+
 		if (ui.window(hwnds[TabSidebar0], tabx, 0, Config.raw.layout[LayoutSidebarW], Config.raw.layout[LayoutSidebarH0])) {
-			for (draw in hwndTabs[TabSidebar0]) draw(htabs[TabSidebar0]);
+			for (i in 0...(mini ? 1 : hwndTabs[TabSidebar0].length)) hwndTabs[TabSidebar0][i](htabs[TabSidebar0]);
 		}
-		if (ui.window(hwnds[TabSidebar1], tabx, Config.raw.layout[LayoutSidebarH0], Config.raw.layout[LayoutSidebarW], Config.raw.layout[LayoutSidebarH1])) {
-			for (draw in hwndTabs[TabSidebar1]) draw(htabs[TabSidebar1]);
+		if (ui.window(hwnds[TabSidebar1], tabx, Config.raw.layout[LayoutSidebarH0], Config.raw.layout[LayoutSidebarW], Config.raw.layout[LayoutSidebarH1] - expandButtonOffset)) {
+			for (i in 0...(mini ? 1 : hwndTabs[TabSidebar1].length)) hwndTabs[TabSidebar1][i](htabs[TabSidebar1]);
 		}
 
+		ui.endWindow();
+		ui.t.SCROLL_W = _SCROLL_W;
+
+		// Collapse / expand button for mini sidebar
+		if (Config.raw.touch_ui) {
+			var width = Config.raw.layout[LayoutSidebarW];
+			var height = Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET());
+			if (ui.window(Id.handle(), System.windowWidth() - width, System.windowHeight() - height, width, height + 1)) {
+				ui._w = width;
+				var _BUTTON_H = ui.t.BUTTON_H;
+				var _BUTTON_COL = ui.t.BUTTON_COL;
+				ui.t.BUTTON_H = ui.t.ELEMENT_H;
+				ui.t.BUTTON_COL = ui.t.WINDOW_BG_COL;
+				if (ui.button(mini ? "<<" : ">>")) {
+					Config.raw.layout[LayoutSidebarW] = mini ? defaultSidebarFullW : defaultSidebarMiniW;
+					Config.raw.layout[LayoutSidebarW] = Std.int(Config.raw.layout[LayoutSidebarW] * ui.SCALE());
+				}
+				ui.t.BUTTON_H = _BUTTON_H;
+				ui.t.BUTTON_COL = _BUTTON_COL;
+			}
+		}
+
+		// Expand button
 		if (Config.raw.layout[LayoutSidebarW] == 0) {
 			var width = Std.int(ui.ops.font.width(ui.fontSize, "<<") + 25 * ui.SCALE());
-			if (ui.window(hminimized, System.windowWidth() - width, 0, width, Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET()))) {
+			if (ui.window(hminimized, System.windowWidth() - width, 0, width, Std.int(ui.ELEMENT_H() + ui.ELEMENT_OFFSET() + 1))) {
 				ui._w = width;
 				var _BUTTON_H = ui.t.BUTTON_H;
 				var _BUTTON_COL = ui.t.BUTTON_COL;
@@ -1168,7 +1215,7 @@ class UIBase {
 				ui.t.BUTTON_COL = ui.t.SEPARATOR_COL;
 
 				if (ui.button("<<")) {
-					Config.raw.layout[LayoutSidebarW] = Context.raw.maximizedSidebarWidth != 0 ? Context.raw.maximizedSidebarWidth : Std.int(UIBase.defaultWindowW * Config.raw.window_scale);
+					Config.raw.layout[LayoutSidebarW] = Context.raw.maximizedSidebarWidth != 0 ? Context.raw.maximizedSidebarWidth : Std.int(UIBase.defaultSidebarW * Config.raw.window_scale);
 				}
 				ui.t.BUTTON_H = _BUTTON_H;
 				ui.t.BUTTON_COL = _BUTTON_COL;
@@ -1182,15 +1229,8 @@ class UIBase {
 			Context.raw.selectTime = Time.time();
 		}
 		Context.raw.lastHtab0Position = htabs[TabSidebar0].position;
-		#end
-
-
-
-		ui.end();
-		g.begin(false);
 	}
 
-	#if (is_paint || is_sculpt)
 	public function renderCursor(g: kha.graphics2.Graphics) {
 		if (!App.uiEnabled) return;
 

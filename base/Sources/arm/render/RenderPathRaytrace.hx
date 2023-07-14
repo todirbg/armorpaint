@@ -3,7 +3,7 @@ package arm.render;
 import iron.RenderPath;
 import iron.Scene;
 
-#if (kha_direct3d12 || kha_vulkan)
+#if (kha_direct3d12 || kha_vulkan || kha_metal)
 
 class RenderPathRaytrace {
 
@@ -24,6 +24,8 @@ class RenderPathRaytrace {
 
 	#if kha_direct3d12
 	public static inline var ext = ".cso";
+	#elseif kha_metal
+	public static inline var ext = ".metal";
 	#else
 	public static inline var ext = ".spirv";
 	#end
@@ -41,7 +43,10 @@ class RenderPathRaytrace {
 			lastEnvmap = null;
 		}
 
-		if (!Context.raw.envmapLoaded) Context.loadEnvmap();
+		if (!Context.raw.envmapLoaded) {
+			Context.loadEnvmap();
+			Context.updateEnvmap();
+		}
 		var probe = Scene.active.world.probe;
 		var savedEnvmap = Context.raw.showEnvmapBlur ? probe.radianceMipmaps[0] : Context.raw.savedEnvmap;
 		if (lastEnvmap != savedEnvmap) {
@@ -66,8 +71,13 @@ class RenderPathRaytrace {
 		f32[1] = ct.worldy();
 		f32[2] = ct.worldz();
 		f32[3] = frame;
+		#if kha_metal
+		// frame = (frame % (16)) + 1; // _PAINT
+		frame = frame + 1; // _RENDER
+		#else
 		frame = (frame % 4) + 1; // _PAINT
 		// frame = frame + 1; // _RENDER
+		#end
 		f32[4] = helpMat._00;
 		f32[5] = helpMat._01;
 		f32[6] = helpMat._02;
@@ -92,7 +102,13 @@ class RenderPathRaytrace {
 		var framebuffer = path.renderTargets.get("buf").image;
 		Krom.raytraceDispatchRays(framebuffer.renderTarget_, f32.buffer);
 
-		if (Context.raw.ddirty == 1 || Context.raw.pdirty == 1) Context.raw.rdirty = 4;
+		if (Context.raw.ddirty == 1 || Context.raw.pdirty == 1) {
+			#if kha_metal
+			Context.raw.rdirty = 128;
+			#else
+			Context.raw.rdirty = 4;
+			#end
+		}
 		Context.raw.ddirty--;
 		Context.raw.pdirty--;
 		Context.raw.rdirty--;
@@ -131,6 +147,12 @@ class RenderPathRaytrace {
 	public static function draw(useLiveLayer: Bool) {
 		var isLive = Config.raw.brush_live && RenderPathPaint.liveLayerDrawn > 0;
 		if (Context.raw.ddirty > 1 || Context.raw.pdirty > 0 || isLive) frame = 0;
+
+		#if kha_metal
+		// Delay path tracing additional samples while painting
+		var down = iron.system.Input.getMouse().down() || iron.system.Input.getPen().down();
+		if (Context.inViewport() && down) frame = 0;
+		#end
 
 		commands(useLiveLayer);
 

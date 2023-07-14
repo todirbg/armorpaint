@@ -318,6 +318,12 @@ class BoxPreferences {
 					Config.raw.workspace = workspaceHandle.position;
 				}
 
+				var cameraControlsHandle = Id.handle({ position: Config.raw.camera_controls });
+				ui.combo(cameraControlsHandle, [tr("Orbit"), tr("Rotate"), tr("Fly")], tr("Default Camera Controls"), true);
+				if (cameraControlsHandle.changed) {
+					Config.raw.camera_controls = cameraControlsHandle.position;
+				}
+
 				var layerResHandle = Id.handle({ position: Config.raw.layer_res });
 
 				#if (is_paint || is_sculpt)
@@ -414,7 +420,7 @@ class BoxPreferences {
 			Context.raw.hsupersample = Id.handle({ position: Config.getSuperSampleQuality(Config.raw.rp_supersample) });
 			Context.raw.hvxao = Id.handle({ selected: Config.raw.rp_gi });
 			if (ui.tab(htab, tr("Viewport"), true)) {
-				#if (kha_direct3d12 || kha_vulkan)
+				#if (kha_direct3d12 || kha_vulkan || kha_metal)
 
 				var hpathtracemode = Id.handle({ position: Context.raw.pathTraceMode });
 				Context.raw.pathTraceMode = ui.combo(hpathtracemode, [tr("Core"), tr("Full")], tr("Path Tracer"), true);
@@ -422,14 +428,13 @@ class BoxPreferences {
 					arm.render.RenderPathRaytrace.ready = false;
 				}
 
-				#else
+				#end
 
 				var hrendermode = Id.handle({ position: Context.raw.renderMode });
 				Context.raw.renderMode = ui.combo(hrendermode, [tr("Full"), tr("Mobile")], tr("Renderer"), true);
 				if (hrendermode.changed) {
 					Context.setRenderPath();
 				}
-				#end
 
 				ui.combo(Context.raw.hsupersample, ["0.25x", "0.5x", "1.0x", "1.5x", "2.0x", "4.0x"], tr("Super Sample"), true);
 				if (Context.raw.hsupersample.changed) Config.applyConfig();
@@ -684,7 +689,7 @@ plugin.drawUI = function(ui) {
 		App.uiMenu.setScale(scale);
 		App.resize();
 		#if (is_paint || is_sculpt)
-		Config.raw.layout[LayoutSidebarW] = Std.int(UIBase.defaultWindowW * scale);
+		Config.raw.layout[LayoutSidebarW] = Std.int(UIBase.defaultSidebarW * scale);
 		UIToolbar.inst.toolbarw = Std.int(UIToolbar.defaultToolbarW * scale);
 		UIView2D.inst.ui.setScale(scale);
 		#end

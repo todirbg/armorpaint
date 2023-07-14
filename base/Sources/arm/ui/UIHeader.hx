@@ -178,7 +178,7 @@ class UIHeader {
 		else if (Context.raw.tool == ToolBake) {
 			ui.changed = false;
 
-			#if (kha_direct3d12 || kha_vulkan)
+			#if (kha_direct3d12 || kha_vulkan || kha_metal)
 			var baking = Context.raw.pdirty > 0;
 			var rtBake = Context.raw.bakeType == BakeAO || Context.raw.bakeType == BakeLightmap || Context.raw.bakeType == BakeBentNormal || Context.raw.bakeType == BakeThickness;
 			if (baking && ui.button(tr("Stop"))) {
@@ -198,6 +198,9 @@ class UIHeader {
 				});
 				UIBase.inst.hwnds[0].redraws = 2;
 				History.pushUndo = true;
+				#if (kha_direct3d12 || kha_vulkan || kha_metal)
+				arm.render.RenderPathRaytraceBake.currentSample = 0;
+				#end
 			}
 
 			var bakeHandle = Id.handle({ position: Context.raw.bakeType });
@@ -214,14 +217,26 @@ class UIHeader {
 				tr("Object ID"),
 				tr("Vertex Color"),
 			];
-			#if (kha_direct3d12 || kha_vulkan)
-			bakes.push(tr("Lightmap"));
-			bakes.push(tr("Bent Normal"));
-			bakes.push(tr("Thickness"));
+			#if (kha_direct3d12 || kha_vulkan || kha_metal)
+			if (Krom.raytraceSupported()) {
+				bakes.push(tr("Lightmap"));
+				bakes.push(tr("Bent Normal"));
+				bakes.push(tr("Thickness"));
+			}
+			else {
+				bakes.shift(); // Remove AO
+			}
 			#end
+
 			Context.raw.bakeType = ui.combo(bakeHandle, bakes, tr("Bake"));
 
-			#if (kha_direct3d12 || kha_vulkan)
+			#if (kha_direct3d12 || kha_vulkan || kha_metal)
+			if (!Krom.raytraceSupported()) {
+				Context.raw.bakeType += 1; // Offset for removed AO
+			}
+			#end
+
+			#if (kha_direct3d12 || kha_vulkan || kha_metal)
 			if (rtBake) {
 				var samplesHandle = Id.handle({ value: Context.raw.bakeSamples });
 				Context.raw.bakeSamples = Std.int(ui.slider(samplesHandle, tr("Samples"), 1, 512, true, 1));
@@ -244,10 +259,19 @@ class UIHeader {
 				var offsetHandle = Id.handle({ value: Context.raw.bakeAoOffset });
 				Context.raw.bakeAoOffset = ui.slider(offsetHandle, tr("Offset"), 0.0, 2.0, true);
 			}
-			#if (kha_direct3d12 || kha_vulkan)
+			#if (kha_direct3d12 || kha_vulkan || kha_metal)
 			if (rtBake) {
-				ui.text(tr("Rays/pix:") + ' ${arm.render.RenderPathRaytraceBake.raysPix}');
-				ui.text(tr("Rays/sec:") + ' ${arm.render.RenderPathRaytraceBake.raysSec}');
+				var progress = arm.render.RenderPathRaytraceBake.currentSample / Context.raw.bakeSamples;
+				if (progress > 1.0) progress = 1.0;
+				// Progress bar
+				ui.g.color = ui.t.SEPARATOR_COL;
+				ui.drawRect(ui.g, true, ui._x + 1, ui._y, ui._w - 2, ui.ELEMENT_H());
+				ui.g.color = ui.t.HIGHLIGHT_COL;
+				ui.drawRect(ui.g, true, ui._x + 1, ui._y, (ui._w - 2) * progress, ui.ELEMENT_H());
+				ui.g.color = 0xffffffff;
+				ui.text(tr("Samples") + ": " + arm.render.RenderPathRaytraceBake.currentSample);
+				ui.text(tr("Rays/pixel" + ": ") + arm.render.RenderPathRaytraceBake.raysPix);
+				ui.text(tr("Rays/second" + ": ") + arm.render.RenderPathRaytraceBake.raysSec);
 			}
 			#end
 			if (Context.raw.bakeType == BakeCurvature) {

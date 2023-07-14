@@ -31,7 +31,7 @@ class Main {
 		embed(["placeholder.k"]);
 		#end
 
-		#if (kha_direct3d12 || kha_vulkan)
+		#if (kha_direct3d12 || kha_vulkan || kha_metal)
 		embedRaytrace();
 		#if is_paint
 		embedRaytraceBake();
@@ -147,7 +147,7 @@ class Main {
 		}
 	}
 
-	#if (kha_direct3d12 || kha_vulkan)
+	#if (kha_direct3d12 || kha_vulkan || kha_metal)
 
 	public static function embedRaytrace() {
 		var global = js.Syntax.code("globalThis");

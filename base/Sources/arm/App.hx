@@ -279,7 +279,7 @@ class App {
 
 		var res = 0;
 		if (UINodes.inst == null || UIBase.inst == null) {
-			var sidebarw = Config.raw.layout == null ? UIBase.defaultWindowW : Config.raw.layout[LayoutSidebarW];
+			var sidebarw = Config.raw.layout == null ? UIBase.defaultSidebarW : Config.raw.layout[LayoutSidebarW];
 			res = System.windowWidth() - sidebarw - UIToolbar.defaultToolbarW;
 		}
 		else if (UINodes.inst.show || UIView2D.inst.show) {
@@ -749,6 +749,9 @@ class App {
 				UIMenubar.inst.workspaceHandle.redraws = 2;
 				UIHeader.inst.worktab.changed = true;
 			}
+
+			// Default camera controls
+			Context.raw.cameraControls = Config.raw.camera_controls;
 		}
 		else if (Context.raw.frame == 3) {
 			Context.raw.ddirty = 3;
@@ -926,13 +929,13 @@ class App {
 		var raw = Config.raw;
 		raw.layout = [
 			#if (is_paint || is_sculpt)
-			Std.int(UIBase.defaultWindowW * raw.window_scale),
-			Std.int(kha.System.windowHeight() / 2),
-			Std.int(kha.System.windowHeight() / 2),
+			Std.int(UIBase.defaultSidebarW * raw.window_scale), // LayoutSidebarW
+			Std.int(kha.System.windowHeight() / 2), // LayoutSidebarH0
+			Std.int(kha.System.windowHeight() / 2), // LayoutSidebarH1
 			#end
 
 			#if krom_ios
-			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.473) : Std.int(iron.App.w() * 0.473),
+			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.473) : Std.int(iron.App.w() * 0.473), // LayoutNodesW
 			#elseif krom_android
 			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.473) : Std.int(iron.App.w() * 0.473),
 			#else
@@ -940,10 +943,10 @@ class App {
 			#end
 
 			#if (is_paint || is_sculpt)
-			Std.int(iron.App.h() / 2),
+			Std.int(iron.App.h() / 2), // LayoutNodesH
 			#end
 
-			Std.int(UIStatus.defaultStatusH * raw.window_scale),
+			Std.int(UIStatus.defaultStatusH * raw.window_scale), // LayoutStatusH
 
 			#if (krom_android || krom_ios)
 			0, // LayoutHeader
@@ -990,6 +993,11 @@ class App {
 		#end
 		#if is_lab
 		raw.workspace = Space2D;
+		#end
+		#if (krom_android || krom_ios)
+		raw.camera_controls = ControlsRotate;
+		#else
+		raw.camera_controls = ControlsOrbit;
 		#end
 		raw.layer_res = Res2048;
 		#if (krom_android || krom_ios)
@@ -1101,7 +1109,7 @@ class App {
 			rts.get("texpaint_blur").image = Image.createRenderTarget(sizeX, sizeY);
 		}
 		if (RenderPathPaint.liveLayer != null) RenderPathPaint.liveLayer.resizeAndSetBits();
-		#if (kha_direct3d12 || kha_vulkan)
+		#if (kha_direct3d12 || kha_vulkan || kha_metal)
 		arm.render.RenderPathRaytrace.ready = false; // Rebuild baketex
 		#end
 		Context.raw.ddirty = 2;
@@ -1776,6 +1784,16 @@ class App {
 			#end
 		}
 
+		#if kha_metal
+		// Flush command list
+		App.expa.g2.begin(false);
+		App.expa.g2.end();
+		App.expb.g2.begin(false);
+		App.expb.g2.end();
+		App.expc.g2.begin(false);
+		App.expc.g2.end();
+		#end
+
 		var l0 = { texpaint: App.expa, texpaint_nor: App.expb, texpaint_pack: App.expc };
 
 		// Merge height map into normal map
@@ -2100,7 +2118,7 @@ class App {
 		UVUtil.trianglemap = null;
 		UVUtil.trianglemapCached = false;
 		UVUtil.dilatemapCached = false;
-		#if (kha_direct3d12 || kha_vulkan)
+		#if (kha_direct3d12 || kha_vulkan || kha_metal)
 		arm.render.RenderPathRaytrace.ready = false;
 		#end
 	}
@@ -2158,7 +2176,7 @@ class App {
 			initLayers();
 		});
 
-		#if (kha_direct3d12 || kha_vulkan)
+		#if (kha_direct3d12 || kha_vulkan || kha_metal)
 		arm.render.RenderPathRaytrace.ready = false;
 		#end
 	}
