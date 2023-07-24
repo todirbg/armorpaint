@@ -68,8 +68,8 @@ class ImportMesh {
 		#end
 		
 		if (Context.raw.mergedObject != null) {
+			Context.raw.mergedObject.data.delete();
 			Context.raw.mergedObject.remove();
-			Data.deleteMesh(Context.raw.mergedObject.data.handle);
 			Context.raw.mergedObject = null;
 		}
 
