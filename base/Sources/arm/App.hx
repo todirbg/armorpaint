@@ -210,18 +210,16 @@ class App {
 					new Camera();
 					new UIBase();
 					new UINodes();
-					#if (is_paint || is_sculpt)
 					new UIView2D();
-					#end
 
 					#if is_lab
 					arm.logic.RandomNode.setSeed(Std.int(iron.system.Time.realTime() * 4294967295));
 					#end
 
 					iron.App.notifyOnUpdate(update);
-					#if (is_paint || is_sculpt)
 					iron.App.notifyOnRender2D(UIView2D.inst.render);
 					iron.App.notifyOnUpdate(UIView2D.inst.update);
+					#if (is_paint || is_sculpt)
 					iron.App.notifyOnRender2D(UIBase.inst.renderCursor);
 					#end
 					iron.App.notifyOnUpdate(UINodes.inst.update);
@@ -346,7 +344,7 @@ class App {
 		if (UINodes.inst == null) {
 			res = System.windowWidth();
 		}
-		else if (UINodes.inst.show) {
+		else if (UINodes.inst.show || UIView2D.inst.show) {
 			res = System.windowWidth() - Config.raw.layout[LayoutNodesW];
 		}
 		else { // Distract free
@@ -466,12 +464,12 @@ class App {
 		UIMenubar.inst.workspaceHandle.redraws = 2;
 		UINodes.inst.hwnd.redraws = 2;
 		UIBox.hwnd.redraws = 2;
+		UIView2D.inst.hwnd.redraws = 2;
 		if (Context.raw.ddirty < 0) Context.raw.ddirty = 0; // Redraw viewport
 		#if (is_paint || is_sculpt)
 		UIBase.inst.hwnds[TabSidebar0].redraws = 2;
 		UIBase.inst.hwnds[TabSidebar1].redraws = 2;
 		UIToolbar.inst.toolbarHandle.redraws = 2;
-		UIView2D.inst.hwnd.redraws = 2;
 		if (Context.raw.splitView) Context.raw.ddirty = 1;
 		#end
 	}
@@ -753,6 +751,14 @@ class App {
 
 			// Default camera controls
 			Context.raw.cameraControls = Config.raw.camera_controls;
+
+			#if is_lab
+			arm.App.notifyOnNextFrame(function() {
+				arm.App.notifyOnNextFrame(function() {
+					@:privateAccess TabMeshes.setDefaultMesh(".Sphere");
+				});
+			});
+			#end
 		}
 		else if (Context.raw.frame == 3) {
 			Context.raw.ddirty = 3;
@@ -887,12 +893,7 @@ class App {
 	}
 
 	public static function getUIs(): Array<Zui> {
-		#if (is_paint || is_sculpt)
-		return [App.uiBox, App.uiMenu, arm.ui.UIBase.inst.ui, arm.ui.UINodes.inst.ui, arm.ui.UIView2D.inst.ui];
-		#end
-		#if is_lab
-		return [App.uiBox, App.uiMenu, UIBase.inst.ui, arm.ui.UINodes.inst.ui];
-		#end
+		return [App.uiBox, App.uiMenu, UIBase.inst.ui, UINodes.inst.ui, UIView2D.inst.ui];
 	}
 
 	public static function isDecalLayer(): Bool {
@@ -920,12 +921,7 @@ class App {
 	}
 
 	public static function initLayout() {
-		#if (is_paint || is_sculpt)
 		var show2d = (UINodes.inst != null && UINodes.inst.show) || (UIView2D.inst != null && UIView2D.inst.show);
-		#end
-		#if is_lab
-		var show2d = (UINodes.inst != null && UINodes.inst.show);
-		#end
 
 		var raw = Config.raw;
 		raw.layout = [
@@ -943,10 +939,7 @@ class App {
 			show2d ? Std.int((iron.App.w() + raw.layout[LayoutNodesW]) * 0.515) : Std.int(iron.App.w() * 0.515), // Align with ui header controls
 			#end
 
-			#if (is_paint || is_sculpt)
 			Std.int(iron.App.h() / 2), // LayoutNodesH
-			#end
-
 			Std.int(UIStatus.defaultStatusH * raw.window_scale), // LayoutStatusH
 
 			#if (krom_android || krom_ios)
@@ -1008,6 +1001,11 @@ class App {
 		raw.touch_ui = false;
 		raw.splash_screen = false;
 		#end
+		#if (is_paint || is_sculpt)
+		raw.node_preview = true;
+		#else
+		raw.node_preview = false;
+		#end
 
 		#if (is_paint || is_sculpt)
 		raw.pressure_hardness = true;
@@ -1023,7 +1021,6 @@ class App {
 		raw.brush_angle_reject = true;
 		raw.brush_live = false;
 		raw.show_asset_names = false;
-		raw.node_preview = true;
 		#end
 
 		#if is_paint
@@ -2130,6 +2127,17 @@ class App {
 		var texpaint = arm.logic.BrushOutputNode.inst.texpaint;
 		var texpaint_nor = arm.logic.BrushOutputNode.inst.texpaint_nor;
 		var texpaint_pack = arm.logic.BrushOutputNode.inst.texpaint_pack;
+
+		if (UINodes.inst.getNodes().nodesSelected.length > 0) {
+			var node = UINodes.inst.getNodes().nodesSelected[0];
+			var brushNode = arm.logic.LogicParser.getLogicNode(node);
+			if (brushNode != null && brushNode.getCachedImage() != null) {
+				texpaint = brushNode.getCachedImage();
+				texpaint_nor = iron.RenderPath.active.renderTargets.get("texpaint_nor_empty").image;
+				texpaint_pack = iron.RenderPath.active.renderTargets.get("texpaint_pack_empty").image;
+			}
+		}
+
 		return { texpaint: texpaint, texpaint_nor: texpaint_nor, texpaint_pack: texpaint_pack };
 	}
 
@@ -2228,6 +2236,7 @@ class App {
 		view_distract_free: "f11",
 		viewport_mode: "ctrl+m",
 		toggle_node_editor: "tab",
+		toggle_2d_view: "shift+tab",
 		toggle_browser: "`",
 		node_search: "space",
 		operator_search: "space",
@@ -2253,7 +2262,6 @@ class App {
 		tool_gizmo: "",
 		tool_material: "",
 		swap_brush_eraser: "",
-		toggle_2d_view: "shift+tab",
 		#end
 	};
 }

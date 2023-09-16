@@ -55,6 +55,7 @@ package arm;
 	var ViewMetallic = 5;
 	var ViewOpacity = 6;
 	var ViewHeight = 7;
+	#if (is_paint || is_sculpt)
 	var ViewEmission = 8;
 	var ViewSubsurface = 9;
 	var ViewTexCoord = 10;
@@ -63,6 +64,9 @@ package arm;
 	var ViewObjectID = 13;
 	var ViewMask = 14;
 	var ViewPathTrace = 15;
+	#else
+	var ViewPathTrace = 8;
+	#end
 }
 
 @:enum abstract ChannelType(Int) from Int to Int {
@@ -180,14 +184,18 @@ package arm;
 
 @:enum abstract CanvasType(Int) from Int to Int {
 	var CanvasMaterial = 0;
+	#if (is_paint || is_sculpt)
 	var CanvasBrush = 1;
+	#end
 }
 
 @:enum abstract View2DType(Int) from Int to Int {
-	var View2DLayer = 0;
-	var View2DAsset = 1;
+	var View2DAsset = 0;
+	var View2DNode = 1;
+	#if (is_paint || is_sculpt)
 	var View2DFont = 2;
-	var View2DNode = 3;
+	var View2DLayer = 3;
+	#end
 }
 
 @:enum abstract View2DLayerMode(Int) from Int to Int {
@@ -346,7 +354,8 @@ package arm;
 	#end
 	#if is_lab
 	var LayoutNodesW = 0;
-	var LayoutStatusH = 1;
-	var LayoutHeader = 2;
+	var LayoutNodesH = 1;
+	var LayoutStatusH = 2;
+	var LayoutHeader = 3;
 	#end
 }

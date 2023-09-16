@@ -9,13 +9,13 @@ import zui.Id;
 import zui.Nodes;
 import zui.Ext;
 import iron.system.Input;
+import iron.system.Time;
 import arm.shader.NodesMaterial;
 import arm.logic.NodesBrush;
 import arm.ui.UIHeader;
 import arm.Project;
 import arm.ProjectFormat;
 #if (is_paint || is_sculpt)
-import iron.system.Time;
 import arm.util.RenderUtil;
 import arm.shader.MakeMaterial;
 #end
@@ -39,9 +39,7 @@ class UINodes {
 	public var wh: Int;
 
 	public var ui: Zui;
-	#if (is_paint || is_sculpt)
 	public var canvasType = CanvasMaterial;
-	#end
 	var showMenu = false;
 	var showMenuFirst = true;
 	var hideMenu = false;
@@ -104,9 +102,9 @@ class UINodes {
 					if (linkDrag.to_id == -1 && n.inputs.length > 0) {
 						linkDrag.to_id = n.id;
 						var fromType = node.outputs[linkDrag.from_socket].type;
-						// 1. step: Connect to the first socket.
+						// Connect to the first socket
 						linkDrag.to_socket = 0;
-						// 2. step: Try to find the first type-matching socket and use it if present.
+						// Try to find the first type-matching socket and use it if present
 						for (socket in n.inputs) {
 							if (socket.type == fromType) {
 								linkDrag.to_socket = n.inputs.indexOf(socket);
@@ -120,6 +118,10 @@ class UINodes {
 						linkDrag.from_socket = 0;
 						getCanvas(true).links.push(linkDrag);
 					}
+					#if is_lab
+					arm.logic.LogicParser.parse(getCanvas(true), false);
+					Context.raw.rdirty = 5;
+					#end
 				});
 			}
 			// Selecting which node socket to preview
@@ -256,9 +258,7 @@ class UINodes {
 			// Node context menu
 			if (!Nodes.socketReleased) {
 				var numberOfEntries = 5;
-				#if (is_paint || is_sculpt)
 				if (canvasType == CanvasMaterial) ++numberOfEntries;
-				#end
 				if (selected != null && selected.type == "RGB") ++numberOfEntries;
 				
 				UIMenu.draw(function(uiMenu: Zui) {
@@ -319,21 +319,18 @@ class UINodes {
 						}
 					}
 
-					#if (is_paint || is_sculpt)
 					if (canvasType == CanvasMaterial) {
 						UIMenu.menuSeparator(uiMenu);
 						if (UIMenu.menuButton(uiMenu, tr("2D View"))) {
 							UIBase.inst.show2DView(View2DNode);
 						}
 					}
-					#end
 
 					uiMenu.enabled = true;
 				}, numberOfEntries);
 			}
 		}
 
-		#if (is_paint || is_sculpt)
 		if (ui.inputReleased) {
 			var nodes = getNodes();
 			var canvas = getCanvas(true);
@@ -348,7 +345,6 @@ class UINodes {
 				}
 			}
 		}
-		#end
 	}
 
 	public static function onNodeRemove(node: TNode) {
@@ -488,11 +484,9 @@ class UINodes {
 		#end
 		wy = UIHeader.headerh * 2;
 
-		#if (is_paint || is_sculpt)
 		if (UIView2D.inst.show) {
 			wy += iron.App.h() - Config.raw.layout[LayoutNodesH];
 		}
-		#end
 
 		var ww = Config.raw.layout[LayoutNodesW];
 		if (!UIBase.inst.show) {
@@ -751,18 +745,18 @@ class UINodes {
 		#end
 
 		wy = 0;
+
+		#if (is_paint || is_sculpt)
 		if (!UIBase.inst.show) {
-			#if (is_paint || is_sculpt)
 			ww += Config.raw.layout[LayoutSidebarW] + UIToolbar.inst.toolbarw;
 			wx -= UIToolbar.inst.toolbarw;
-			#end
 		}
+		#end
 
 		var ew = Std.int(ui.ELEMENT_W() * 0.7);
 		wh = iron.App.h() + UIHeader.headerh;
 		if (Config.raw.layout[LayoutHeader] == 1) wh += UIHeader.headerh;
 
-		#if (is_paint || is_sculpt)
 		if (UIView2D.inst.show) {
 			wh = Config.raw.layout[LayoutNodesH];
 			wy = iron.App.h() - Config.raw.layout[LayoutNodesH] + UIHeader.headerh;
@@ -771,7 +765,6 @@ class UINodes {
 				wy -= UIHeader.headerh * 2;
 			}
 		}
-		#end
 
 		if (ui.window(hwnd, wx, wy, ww, wh)) {
 
@@ -875,11 +868,15 @@ class UINodes {
 			}
 			uichangedLast = ui.changed;
 
-			#if (is_paint || is_sculpt)
+
+
 			// Node previews
 			if (Config.raw.node_preview && nodes.nodesSelected.length > 0) {
 				var img: kha.Image = null;
 				var sel = nodes.nodesSelected[0];
+
+				#if (is_paint || is_sculpt)
+
 				var singleChannel = sel.type == "LAYER_MASK";
 				if (sel.type == "LAYER" || sel.type == "LAYER_MASK") {
 					var id = sel.buttons[0].default_value;
@@ -904,6 +901,16 @@ class UINodes {
 				else if (canvasType == CanvasMaterial) {
 					img = Context.raw.nodePreview;
 				}
+
+				#else
+
+				var brushNode = arm.logic.LogicParser.getLogicNode(sel);
+				if (brushNode != null) {
+					img = brushNode.getCachedImage();
+				}
+
+				#end
+
 				if (img != null) {
 					var tw = 128 * ui.SCALE();
 					var th = tw * (img.height / img.width);
@@ -916,6 +923,7 @@ class UINodes {
 					var invertY = false;
 					#end
 
+					#if (is_paint || is_sculpt)
 					if (singleChannel) {
 						ui.g.pipeline = UIView2D.pipe;
 						#if kha_opengl
@@ -923,18 +931,20 @@ class UINodes {
 						#end
 						ui.currentWindow.texture.g4.setInt(UIView2D.channelLocation, 1);
 					}
+					#end
 
 					ui.g.color = 0xffffffff;
 					invertY ?
 						ui.g.drawScaledImage(img, tx, ty + th, tw, -th) :
 						ui.g.drawScaledImage(img, tx, ty, tw, th);
 
+					#if (is_paint || is_sculpt)
 					if  (singleChannel) {
 						ui.g.pipeline = null;
 					}
+					#end
 				}
 			}
-			#end
 
 			// Menu
 			ui.g.color = ui.t.SEPARATOR_COL;
@@ -986,7 +996,7 @@ class UINodes {
 
 			#if is_lab
 			ui.windowBorderTop = 0;
-			drawLabButtons(ew, startY);
+			UINodesExt.drawButtons(ew, startY);
 			#end
 
 			var _BUTTON_COL = ui.t.BUTTON_COL;
@@ -1331,109 +1341,4 @@ class UINodes {
 		for (c in canvases) if (c.name == name) return c;
 		return null;
 	}
-
-	#if is_lab
-	function drawLabButtons(ew: Float, startY: Float) {
-		if (ui.button(tr("Run"))) {
-			Console.progress(tr("Processing"));
-
-			function delayIdleSleep(_) {
-				Krom.delayIdleSleep();
-			}
-			iron.App.notifyOnRender2D(delayIdleSleep);
-
-			App.notifyOnNextFrame(function() {
-				var timer = iron.system.Time.realTime();
-
-				arm.logic.LogicParser.parse(Project.canvas, false);
-
-				arm.logic.PhotoToPBRNode.cachedSource = null;
-				@:privateAccess arm.logic.BrushOutputNode.inst.getAsImage(ChannelBaseColor, function(texbase: kha.Image) {
-				@:privateAccess arm.logic.BrushOutputNode.inst.getAsImage(ChannelOcclusion, function(texocc: kha.Image) {
-				@:privateAccess arm.logic.BrushOutputNode.inst.getAsImage(ChannelRoughness, function(texrough: kha.Image) {
-				@:privateAccess arm.logic.BrushOutputNode.inst.getAsImage(ChannelNormalMap, function(texnor: kha.Image) {
-				@:privateAccess arm.logic.BrushOutputNode.inst.getAsImage(ChannelHeight, function(texheight: kha.Image) {
-
-					if (texbase != null) {
-						var texpaint = iron.RenderPath.active.renderTargets.get("texpaint").image;
-						texpaint.g2.begin(false);
-						texpaint.g2.drawScaledImage(texbase, 0, 0, Config.getTextureResX(), Config.getTextureResY());
-						texpaint.g2.end();
-					}
-
-					if (texnor != null) {
-						var texpaint_nor = iron.RenderPath.active.renderTargets.get("texpaint_nor").image;
-						texpaint_nor.g2.begin(false);
-						texpaint_nor.g2.drawScaledImage(texnor, 0, 0, Config.getTextureResX(), Config.getTextureResY());
-						texpaint_nor.g2.end();
-					}
-
-					if (App.pipeCopy == null) App.makePipe();
-					if (App.pipeCopyA == null) App.makePipeCopyA();
-					if (iron.data.ConstData.screenAlignedVB == null) iron.data.ConstData.createScreenAlignedData();
-
-					var texpaint_pack = iron.RenderPath.active.renderTargets.get("texpaint_pack").image;
-
-					if (texocc != null) {
-						texpaint_pack.g2.begin(false);
-						texpaint_pack.g2.pipeline = App.pipeCopyR;
-						texpaint_pack.g2.drawScaledImage(texocc, 0, 0, Config.getTextureResX(), Config.getTextureResY());
-						texpaint_pack.g2.pipeline = null;
-						texpaint_pack.g2.end();
-					}
-
-					if (texrough != null) {
-						texpaint_pack.g2.begin(false);
-						texpaint_pack.g2.pipeline = App.pipeCopyG;
-						texpaint_pack.g2.drawScaledImage(texrough, 0, 0, Config.getTextureResX(), Config.getTextureResY());
-						texpaint_pack.g2.pipeline = null;
-						texpaint_pack.g2.end();
-					}
-
-					if (texheight != null) {
-						texpaint_pack.g4.begin();
-						texpaint_pack.g4.setPipeline(App.pipeCopyA);
-						texpaint_pack.g4.setTexture(App.pipeCopyATex, texheight);
-						texpaint_pack.g4.setVertexBuffer(iron.data.ConstData.screenAlignedVB);
-						texpaint_pack.g4.setIndexBuffer(iron.data.ConstData.screenAlignedIB);
-						texpaint_pack.g4.drawIndexedVertices();
-						texpaint_pack.g4.end();
-
-						// arm.util.MeshUtil.applyDisplacement(texpaint_pack, 0.08, Context.raw.brushScale);
-						// arm.util.MeshUtil.calcNormals();
-					}
-
-					Context.raw.ddirty = 2;
-
-					#if (kha_direct3d12 || kha_vulkan || kha_metal)
-					arm.render.RenderPathRaytrace.ready = false;
-					#end
-
-					Console.log("Processing finished in " + (iron.system.Time.realTime() - timer));
-					Console.progress(null);
-					Krom.mlUnload();
-
-					iron.App.removeRender2D(delayIdleSleep);
-				});
-				});
-				});
-				});
-				});
-			});
-		}
-		ui._x += ew + 3;
-		ui._y = 2 + startY;
-
-		#if (krom_android || krom_ios)
-		ui.combo(App.resHandle, ["2K", "4K"], tr("Resolution"));
-		#else
-		ui.combo(App.resHandle, ["2K", "4K", "8K", "16K"], tr("Resolution"));
-		#end
-		if (App.resHandle.changed) {
-			App.onLayersResized();
-		}
-		ui._x += ew + 3;
-		ui._y = 2 + startY;
-	}
-	#end
 }
