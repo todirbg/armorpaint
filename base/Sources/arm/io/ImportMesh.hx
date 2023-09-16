@@ -71,6 +71,9 @@ class ImportMesh {
 		kha.Window.get(0).title = path.substring(path.lastIndexOf(Path.sep) + 1, path.lastIndexOf("."));
 		#end
 		
+	}
+
+static function finishImport() {
 		if (Context.raw.mergedObject != null) {
 			Context.raw.mergedObject.data.delete();
 			Context.raw.mergedObject.remove();
