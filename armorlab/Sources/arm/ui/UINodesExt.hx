@@ -1,7 +1,11 @@
 package arm.ui;
 
+import kha.arrays.ByteArray;
+
 @:access(zui.Zui)
 class UINodesExt {
+
+	static var lastVertices: ByteArray = null; // Before displacement
 
 	public static function drawButtons(ew: Float, startY: Float) {
 		var ui = UINodes.inst.ui;
@@ -13,9 +17,23 @@ class UINodesExt {
 			}
 			iron.App.notifyOnRender2D(delayIdleSleep);
 
+			var tasks = 1;
+
+			function taskDone() {
+				tasks--;
+				if (tasks == 0) {
+					Console.progress(null);
+					Context.raw.ddirty = 2;
+					iron.App.removeRender2D(delayIdleSleep);
+
+					#if (kha_direct3d12 || kha_vulkan || kha_metal)
+					arm.render.RenderPathRaytrace.ready = false;
+					#end
+				}
+			}
+
 			App.notifyOnNextFrame(function() {
 				var timer = iron.system.Time.realTime();
-
 				arm.logic.LogicParser.parse(Project.canvas, false);
 
 				arm.logic.PhotoToPBRNode.cachedSource = null;
@@ -70,21 +88,41 @@ class UINodesExt {
 						texpaint_pack.g4.drawIndexedVertices();
 						texpaint_pack.g4.end();
 
-						// arm.util.MeshUtil.applyDisplacement(texpaint_pack, 0.08, Context.raw.brushScale);
-						// arm.util.MeshUtil.calcNormals();
+						// Make copy of vertices before displacement
+						var o = Project.paintObjects[0];
+						var g = o.data.geom;
+						var vertices = g.vertexBuffer.lock();
+						if (lastVertices == null || lastVertices.byteLength != vertices.byteLength) {
+							lastVertices = ByteArray.make(vertices.byteLength);
+							for (i in 0...Std.int(vertices.byteLength / 2)) {
+								lastVertices.setInt16(i * 2, vertices.getInt16(i * 2));
+							}
+						}
+						else {
+							for (i in 0...Std.int(vertices.byteLength / 2)) {
+								vertices.setInt16(i * 2, lastVertices.getInt16(i * 2));
+							}
+						}
+						g.vertexBuffer.unlock();
+
+						// Apply displacement
+						if (Config.raw.displace_strength > 0) {
+							tasks++;
+							arm.App.notifyOnNextFrame(function() {
+								Console.progress(tr("Apply Displacement"));
+								arm.App.notifyOnNextFrame(function() {
+									arm.util.MeshUtil.applyDisplacement(texpaint_pack, 0.05 * Config.raw.displace_strength, Context.raw.brushScale);
+									arm.util.MeshUtil.calcNormals();
+									taskDone();
+								});
+							});
+						}
 					}
 
-					Context.raw.ddirty = 2;
-
-					#if (kha_direct3d12 || kha_vulkan || kha_metal)
-					arm.render.RenderPathRaytrace.ready = false;
-					#end
-
 					Console.log("Processing finished in " + (iron.system.Time.realTime() - timer));
-					Console.progress(null);
 					Krom.mlUnload();
 
-					iron.App.removeRender2D(delayIdleSleep);
+					taskDone();
 				});
 				});
 				});
