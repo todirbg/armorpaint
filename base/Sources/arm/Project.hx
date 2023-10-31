@@ -445,11 +445,11 @@ class Project {
 					});
 					Data.deleteBlob(path);
 					if(isObj8 == true){
-						replaceExisting = !ui.check(Id.handle({selected: !Context.raw.parseTransform}), tr("Append")); //show "Append" clickbox if the mesh is obj8 format
+						replaceExisting = !ui.check(Id.handle("project_4"), tr("Append")); //show "Append" clickbox if the mesh is obj8 format
 						if (ui.isHovered) ui.tooltip(tr("Append new mesh to existing"));	
 					}
 					else{									  
-						Context.raw.splitBy = ui.combo(Id.handle(), [
+						Context.raw.splitBy = ui.combo(Id.handle("project_4"), [
 							tr("Object"),
 							tr("Group"),
 							tr("Material"),
