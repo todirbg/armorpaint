@@ -240,7 +240,7 @@ static function finishImport() {
 		}
 	}
 
-	static function rawMesh(mesh: Dynamic): TMeshData {
+	public static function rawMesh(mesh: Dynamic): TMeshData {
 		return {
 			name: mesh.name,
 			vertex_arrays: [

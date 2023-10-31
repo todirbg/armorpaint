@@ -125,7 +125,7 @@ class Project {
 	public static function projectNewBox() {
 		#if (is_paint || is_sculpt)
 		UIBox.showCustom(function(ui: Zui) {
-			if (ui.tab(Id.handle(), tr("New Project"))) {
+			if (ui.tab(Id.handle("project_0"), tr("New Project"))) {
 				if (meshList == null) {
 					meshList = File.readDirectory(Path.data() + Path.sep + "meshes");
 					for (i in 0...meshList.length) meshList[i] = meshList[i].substr(0, meshList[i].length - 4); // Trim .arm
@@ -135,8 +135,8 @@ class Project {
 				}
 
 				ui.row([0.5, 0.5]);
-				Context.raw.projectType = ui.combo(Id.handle({ position: Context.raw.projectType }), meshList, tr("Template"), true);
-				Context.raw.projectAspectRatio = ui.combo(Id.handle({ position: Context.raw.projectAspectRatio }), ["1:1", "2:1", "1:2"], tr("Aspect Ratio"), true);
+				Context.raw.projectType = ui.combo(Id.handle("project_1", { position: Context.raw.projectType }), meshList, tr("Template"), true);
+				Context.raw.projectAspectRatio = ui.combo(Id.handle("project_2", { position: Context.raw.projectAspectRatio }), ["1:1", "2:1", "1:2"], tr("Aspect Ratio"), true);
 
 				@:privateAccess ui.endElement();
 				ui.row([0.5, 0.5]);
@@ -207,19 +207,30 @@ class Project {
 				var mesh: Dynamic = Context.raw.projectType == ModelSphere ?
 					new arm.geom.UVSphere(1, 512, 256) :
 					new arm.geom.Plane(1, 1, 512, 512);
-				raw = {
-					name: "Tessellated",
-					vertex_arrays: [
-						{ values: mesh.posa, attrib: "pos", data: "short4norm" },
-						{ values: mesh.nora, attrib: "nor", data: "short2norm" },
-						{ values: mesh.texa, attrib: "tex", data: "short2norm" }
-					],
-					index_arrays: [
-						{ values: mesh.inda, material: 0 }
-					],
-					scale_pos: mesh.scalePos,
-					scale_tex: mesh.scaleTex
-				};
+				mesh.name = "Tessellated";
+				raw = ImportMesh.rawMesh(mesh);
+
+				#if is_sculpt
+				arm.App.notifyOnNextFrame(function() {
+					var f32 = new kha.arrays.Float32Array(Config.getTextureResX() * Config.getTextureResY() * 4);
+					for (i in 0...Std.int(mesh.inda.length)) {
+						var index = mesh.inda[i];
+						f32[i * 4]     = mesh.posa[index * 4]     / 32767;
+						f32[i * 4 + 1] = mesh.posa[index * 4 + 1] / 32767;
+						f32[i * 4 + 2] = mesh.posa[index * 4 + 2] / 32767;
+						f32[i * 4 + 3] = 1.0;
+					}
+
+					var bytes = haxe.io.Bytes.ofData(f32.buffer);
+					var imgmesh = kha.Image.fromBytes(bytes, Config.getTextureResX(), Config.getTextureResY(), kha.graphics4.TextureFormat.RGBA128);
+					var texpaint = Project.layers[0].texpaint;
+					texpaint.g2.begin(false);
+					texpaint.g2.pipeline = App.pipeCopy128;
+					texpaint.g2.drawScaledImage(imgmesh, 0, 0, Config.getTextureResX(), Config.getTextureResY());
+					texpaint.g2.pipeline = null;
+					texpaint.g2.end();
+				});
+				#end
 			}
 			else {
 				Data.getBlob("meshes/" + meshList[Context.raw.projectType] + ".arm", function(b: kha.Blob) {
@@ -412,7 +423,7 @@ class Project {
 
 		UIBox.showCustom(function(ui: Zui) {
 			var tabVertical = Config.raw.touch_ui;
-			if (ui.tab(Id.handle(), tr("Import Mesh"), tabVertical)) {
+			if (ui.tab(Id.handle("project_3"), tr("Import Mesh"), tabVertical)) {
 			
 				//open file and check if the first 3 lines are obj8 format header, set variable to true if so
 				var isObj8 = false;
@@ -449,13 +460,13 @@ class Project {
 				}
 
 				if (path.toLowerCase().endsWith(".fbx")) {
-					Context.raw.parseTransform = ui.check(Id.handle({ selected: Context.raw.parseTransform }), tr("Parse Transforms"));
+					Context.raw.parseTransform = ui.check(Id.handle("project_5", { selected: Context.raw.parseTransform }), tr("Parse Transforms"));
 					if (ui.isHovered) ui.tooltip(tr("Load per-object transforms from .fbx"));
 				}
 
 				#if (is_paint || is_sculpt)
 				if (path.toLowerCase().endsWith(".fbx") || path.toLowerCase().endsWith(".blend")) {
-					Context.raw.parseVCols = ui.check(Id.handle({ selected: Context.raw.parseVCols }), tr("Parse Vertex Colors"));
+					Context.raw.parseVCols = ui.check(Id.handle("project_6", { selected: Context.raw.parseVCols }), tr("Parse Vertex Colors"));
 					if (ui.isHovered) ui.tooltip(tr("Import vertex color data"));
 				}
 				#end
@@ -504,7 +515,7 @@ class Project {
 	public static function unwrapMeshBox(mesh: Dynamic, done: Dynamic->Void, skipUI = false) {
 		UIBox.showCustom(function(ui: Zui) {
 			var tabVertical = Config.raw.touch_ui;
-			if (ui.tab(Id.handle(), tr("Unwrap Mesh"), tabVertical)) {
+			if (ui.tab(Id.handle("project_7"), tr("Unwrap Mesh"), tabVertical)) {
 
 				var unwrapPlugins = [];
 				if (BoxPreferences.filesPlugin == null) {
@@ -517,7 +528,7 @@ class Project {
 				}
 				unwrapPlugins.push("equirect");
 
-				var unwrapBy = ui.combo(Id.handle(), unwrapPlugins, tr("Plugin"), true);
+				var unwrapBy = ui.combo(Id.handle("project_8"), unwrapPlugins, tr("Plugin"), true);
 
 				ui.row([0.5, 0.5]);
 				if (ui.button(tr("Cancel"))) {
